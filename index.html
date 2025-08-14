@@ -717,6 +717,11 @@
 				<h3>Crashes vs Errors</h3>
 				<canvas id="fatalityChart"></canvas>
 			</div>
+
+			<div class="chart-container">
+				<h3>Top App Versions</h3>
+				<canvas id="appVersionChart"></canvas>
+			</div>
 		</div>
 
 		<div class="table-container">
@@ -1168,6 +1173,26 @@
 					ORDER BY crash_count DESC
 					LIMIT 1
 				),
+				app_version_breakdown AS (
+					SELECT 
+						CASE 
+							WHEN '${dateRange}' = 'hour' THEN 
+								FORMAT_TIMESTAMP('%Y-%m-%d %H:00:00', TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)))
+							ELSE 
+								FORMAT_TIMESTAMP('%Y-%m-%d', TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)))
+						END as time_bucket,
+						app_display_version,
+						app_build_version,
+						CONCAT(app_display_version, ' (', app_build_version, ')') as version_string,
+						COUNT(*) as total_events,
+						COUNTIF(is_fatal) as crashes,
+						COUNT(*) - COUNTIF(is_fatal) as errors,
+						COUNT(DISTINCT user_id) as affected_users
+					FROM filtered_data
+					WHERE app_display_version IS NOT NULL
+					GROUP BY time_bucket, app_display_version, app_build_version
+					ORDER BY time_bucket, total_events DESC
+				),
 				metrics AS (
 					SELECT
 						COUNT(DISTINCT user_id) as affected_users,
@@ -1204,6 +1229,19 @@
 						)))
 						FROM fatality_stats
 					) as fatality_stats_json,
+					(
+						SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(
+							time_bucket,
+							version_string,
+							app_display_version,
+							app_build_version,
+							total_events,
+							crashes,
+							errors,
+							affected_users
+						) ORDER BY time_bucket, total_events DESC))
+						FROM app_version_breakdown
+					) as app_version_breakdown_json,
 					(
 						SELECT TO_JSON_STRING(ARRAY_AGG(t))
 						FROM (
@@ -1450,14 +1488,15 @@
 				// App version data
 				topAppVersion: data[12]?.v || 'Unknown',
 				topVersionCrashes: parseInt(data[13]?.v) || 0,
-				fatalityStats: JSON.parse(data[14]?.v || '[]')
+				fatalityStats: JSON.parse(data[14]?.v || '[]'),
+				appVersionBreakdown: JSON.parse(data[15]?.v || '[]')
 			};
 
 				// Parse JSON data with validation
 				try {
 					// Daily trend data
-					console.log('Parsing daily trend data from index:', 15, 'Raw value:', data[15]?.v);
-					const dailyTrendRaw = data[15]?.v || '[]';
+					console.log('Parsing daily trend data from index:', 16, 'Raw value:', data[16]?.v);
+					const dailyTrendRaw = data[16]?.v || '[]';
 					console.log('Daily trend raw string:', dailyTrendRaw);
 					const dailyTrend = JSON.parse(dailyTrendRaw);
 					console.log('Parsed daily trend:', dailyTrend);
@@ -1473,7 +1512,7 @@
 					}));
 
 					// Device stats
-					const deviceStats = JSON.parse(data[16]?.v || '[]');
+					const deviceStats = JSON.parse(data[17]?.v || '[]');
 					console.log('Raw device stats:', deviceStats);
 					if (!Array.isArray(deviceStats)) throw new Error('Invalid device stats data');
 					metrics.deviceStats = deviceStats.map(d => ({
@@ -1486,7 +1525,7 @@
 					}));
 
 					// Error types
-					const errorTypes = JSON.parse(data[17]?.v || '[]');
+					const errorTypes = JSON.parse(data[18]?.v || '[]');
 					console.log('Raw error types:', errorTypes);
 					if (!Array.isArray(errorTypes)) throw new Error('Invalid error types data');
 					metrics.errorTypes = errorTypes.map(d => ({
@@ -1497,7 +1536,7 @@
 					}));
 
 					// High risk users
-					const highRiskUsers = JSON.parse(data[18]?.v || '[]');
+					const highRiskUsers = JSON.parse(data[19]?.v || '[]');
 					console.log('Raw high risk users:', highRiskUsers);
 					if (!Array.isArray(highRiskUsers)) throw new Error('Invalid high risk users data');
 					metrics.highRiskUsers = highRiskUsers.map(d => ({
@@ -1528,10 +1567,11 @@
 				} catch (e) {
 					console.error('Error parsing JSON data:', e);
 					console.log('Raw JSON data:', {
-						dailyTrend: data[15]?.v,
-						deviceStats: data[16]?.v,
-						errorTypes: data[17]?.v,
-						highRiskUsers: data[18]?.v
+						appVersionBreakdown: data[15]?.v,
+						dailyTrend: data[16]?.v,
+						deviceStats: data[17]?.v,
+						errorTypes: data[18]?.v,
+						highRiskUsers: data[19]?.v
 					});
 					throw new Error('Failed to parse dashboard data: ' + e.message);
 				}
@@ -2212,6 +2252,133 @@
 						}
 					}
 				});
+			}
+
+			// App Version Breakdown Chart (Time Series)
+			const appVersionCtx = document.getElementById('appVersionChart')?.getContext('2d');
+			if (appVersionCtx && data.appVersionBreakdown && data.appVersionBreakdown.length > 0) {
+				console.log('App version breakdown data:', data.appVersionBreakdown);
+				
+				// Group data by time_bucket and create datasets for each version
+				const timeBuckets = [...new Set(data.appVersionBreakdown.map(v => v.time_bucket))].sort();
+				const versions = [...new Set(data.appVersionBreakdown.map(v => v.app_display_version))];
+				
+				// Define colors for different versions
+				const colors = [
+					'#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6',
+					'#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
+				];
+				
+				const datasets = versions.slice(0, 5).map((version, index) => {
+					const versionData = timeBuckets.map(timeBucket => {
+						const dataPoint = data.appVersionBreakdown.find(
+							v => v.time_bucket === timeBucket && v.app_display_version === version
+						);
+						return dataPoint ? dataPoint.total_events : 0;
+					});
+					
+					return {
+						label: version,
+						data: versionData,
+						borderColor: colors[index % colors.length],
+						backgroundColor: colors[index % colors.length] + '20',
+						borderWidth: 2,
+						fill: false,
+						tension: 0.4
+					};
+				});
+
+				if (charts.appVersion) {
+					charts.appVersion.destroy();
+				}
+
+				charts.appVersion = new Chart(appVersionCtx, {
+					type: 'line',
+					data: {
+						labels: timeBuckets.map(bucket => {
+							// Format labels based on date range
+							if (bucket.includes(':')) {
+								// Hourly format
+								return new Date(bucket).toLocaleString('en-US', { 
+									month: 'short', day: 'numeric', hour: 'numeric' 
+								});
+							} else {
+								// Daily format
+								return new Date(bucket).toLocaleDateString('en-US', { 
+									month: 'short', day: 'numeric' 
+								});
+							}
+						}),
+						datasets: datasets
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						plugins: {
+							legend: {
+								position: 'bottom',
+								labels: {
+									usePointStyle: true,
+									pointStyle: 'circle'
+								}
+							},
+							tooltip: {
+								callbacks: {
+									label: function(context) {
+										const timeBucket = timeBuckets[context.dataIndex];
+										const version = context.dataset.label;
+										const dataPoint = data.appVersionBreakdown.find(
+											v => v.time_bucket === timeBucket && v.app_display_version === version
+										);
+										
+										if (dataPoint) {
+											return [
+												`${version}: ${context.parsed.y.toLocaleString()} events`,
+												`Build: ${dataPoint.app_build_version}`,
+												`Crashes: ${dataPoint.crashes}`,
+												`Errors: ${dataPoint.errors}`,
+												`Users: ${dataPoint.affected_users}`
+											];
+										}
+										return `${version}: ${context.parsed.y.toLocaleString()} events`;
+									}
+								}
+							}
+						},
+						scales: {
+							x: {
+								grid: {
+									display: true,
+									color: 'rgba(0, 0, 0, 0.1)'
+								},
+								title: {
+									display: true,
+									text: 'Time Period'
+								}
+							},
+							y: {
+								beginAtZero: true,
+								title: {
+									display: true,
+									text: 'Number of Events',
+									font: {
+										weight: 'bold'
+									}
+								},
+								ticks: {
+									callback: function(value) {
+										return value.toLocaleString();
+									}
+								},
+								grid: {
+									color: 'rgba(0, 0, 0, 0.1)'
+								}
+							}
+						}
+					}
+				});
+			} else {
+				console.log('App version chart not rendered. Data:', data.appVersionBreakdown);
 			}
 		}
 
