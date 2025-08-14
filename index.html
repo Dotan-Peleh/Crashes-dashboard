@@ -684,6 +684,12 @@
 				<div class="metric-value" id="avgRiskScore">-</div>
 				<div class="metric-change" id="riskChange">Loading...</div>
 			</div>
+
+			<div class="metric-card loading">
+				<div class="metric-label">Top App Version</div>
+				<div class="metric-value" id="topAppVersion">-</div>
+				<div class="metric-subtitle" id="appVersionSubtitle">most affected version</div>
+			</div>
 		</div>
 
 		<div class="charts">
@@ -730,6 +736,7 @@
 						<th data-sort="user_id">User ID <span class="sort-indicator">↕</span></th>
 						<th data-sort="platform">Platform <span class="sort-indicator">↕</span></th>
 						<th data-sort="device_model">Device <span class="sort-indicator">↕</span></th>
+						<th data-sort="app_version">App Version <span class="sort-indicator">↕</span></th>
 						<th data-sort="errors">Total Errors <span class="sort-indicator">↕</span></th>
 						<th data-sort="risk">Risk Score <span class="sort-indicator">↕</span></th>
 						<th data-sort="last_24h">Last 24h <span class="sort-indicator">↕</span></th>
@@ -1150,6 +1157,17 @@
 						0 as prev_non_fatal_crashes,
 						0.0 as prev_avg_risk_score
 				),
+				version_stats AS (
+					SELECT 
+						CONCAT(app_display_version, ' (', app_build_version, ')') as version_string,
+						COUNT(*) as crash_count,
+						COUNT(DISTINCT user_id) as affected_users
+					FROM filtered_data
+					WHERE app_display_version IS NOT NULL
+					GROUP BY app_display_version, app_build_version
+					ORDER BY crash_count DESC
+					LIMIT 1
+				),
 				metrics AS (
 					SELECT
 						COUNT(DISTINCT user_id) as affected_users,
@@ -1176,6 +1194,8 @@
 					comparison_metrics.prev_fatal_crashes,
 					comparison_metrics.prev_non_fatal_crashes,
 					comparison_metrics.prev_avg_risk_score,
+					COALESCE(version_stats.version_string, 'Unknown') as top_app_version,
+					COALESCE(version_stats.crash_count, 0) as top_version_crashes,
 					(
 						SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(
 							platform,
@@ -1253,6 +1273,7 @@
 					) as high_risk_users_json
 				FROM metrics
 				CROSS JOIN comparison_metrics
+				LEFT JOIN version_stats ON TRUE
 			`;
 			
 			console.log('Final BigQuery:', finalQuery);
@@ -1390,6 +1411,7 @@
 				document.getElementById('avgRiskScore').textContent = '-';
 				document.getElementById('eventsPerUser').textContent = '-';
 				document.getElementById('usersSubtitle').textContent = 'Loading...';
+				document.getElementById('topAppVersion').textContent = '-';
 				document.getElementById('crashChange').textContent = 'Loading...';
 				document.getElementById('userChange').textContent = 'Loading...';
 				document.getElementById('fatalChange').textContent = 'Loading...';
@@ -1425,14 +1447,17 @@
 				prevFatalCrashes: parseInt(data[9]?.v) || 0,
 				prevNonFatalCrashes: parseInt(data[10]?.v) || 0,
 				prevAvgRiskScore: parseFloat(data[11]?.v || '0'),
-				fatalityStats: JSON.parse(data[12]?.v || '[]')
+				// App version data
+				topAppVersion: data[12]?.v || 'Unknown',
+				topVersionCrashes: parseInt(data[13]?.v) || 0,
+				fatalityStats: JSON.parse(data[14]?.v || '[]')
 			};
 
 				// Parse JSON data with validation
 				try {
 					// Daily trend data
-					console.log('Parsing daily trend data from index:', 13, 'Raw value:', data[13]?.v);
-					const dailyTrendRaw = data[13]?.v || '[]';
+					console.log('Parsing daily trend data from index:', 15, 'Raw value:', data[15]?.v);
+					const dailyTrendRaw = data[15]?.v || '[]';
 					console.log('Daily trend raw string:', dailyTrendRaw);
 					const dailyTrend = JSON.parse(dailyTrendRaw);
 					console.log('Parsed daily trend:', dailyTrend);
@@ -1448,7 +1473,7 @@
 					}));
 
 					// Device stats
-					const deviceStats = JSON.parse(data[14]?.v || '[]');
+					const deviceStats = JSON.parse(data[16]?.v || '[]');
 					console.log('Raw device stats:', deviceStats);
 					if (!Array.isArray(deviceStats)) throw new Error('Invalid device stats data');
 					metrics.deviceStats = deviceStats.map(d => ({
@@ -1461,7 +1486,7 @@
 					}));
 
 					// Error types
-					const errorTypes = JSON.parse(data[15]?.v || '[]');
+					const errorTypes = JSON.parse(data[17]?.v || '[]');
 					console.log('Raw error types:', errorTypes);
 					if (!Array.isArray(errorTypes)) throw new Error('Invalid error types data');
 					metrics.errorTypes = errorTypes.map(d => ({
@@ -1472,7 +1497,7 @@
 					}));
 
 					// High risk users
-					const highRiskUsers = JSON.parse(data[16]?.v || '[]');
+					const highRiskUsers = JSON.parse(data[18]?.v || '[]');
 					console.log('Raw high risk users:', highRiskUsers);
 					if (!Array.isArray(highRiskUsers)) throw new Error('Invalid high risk users data');
 					metrics.highRiskUsers = highRiskUsers.map(d => ({
@@ -1503,10 +1528,10 @@
 				} catch (e) {
 					console.error('Error parsing JSON data:', e);
 					console.log('Raw JSON data:', {
-						dailyTrend: data[13]?.v,
-						deviceStats: data[14]?.v,
-						errorTypes: data[15]?.v,
-						highRiskUsers: data[16]?.v
+						dailyTrend: data[15]?.v,
+						deviceStats: data[16]?.v,
+						errorTypes: data[17]?.v,
+						highRiskUsers: data[18]?.v
 					});
 					throw new Error('Failed to parse dashboard data: ' + e.message);
 				}
@@ -1572,6 +1597,7 @@
 			elements.fatalCrashes.textContent = formatNumber(data.fatalCrashes);
 			document.getElementById('nonFatalCrashes').textContent = formatNumber(data.nonFatalCrashes);
 			elements.avgRiskScore.textContent = parseFloat(data.avgRiskScore).toFixed(1);
+			document.getElementById('topAppVersion').textContent = data.topAppVersion || 'Unknown';
 
 			// Calculate and display events per user with correct terminology
 			const eventsPerUser = data.affectedUsers > 0 ? (data.totalCrashes / data.affectedUsers).toFixed(1) : 0;
@@ -1733,6 +1759,10 @@
 					<td>${user.user_id}</td>
 					<td><span class="platform-badge platform-${user.platform.toLowerCase()}">${user.platform}</span></td>
 					<td>${user.device_model}</td>
+					<td>
+						<div><strong>${user.app_display_version || 'Unknown'}</strong></div>
+						<small>(Build: ${user.app_build_version || 'N/A'})</small>
+					</td>
 					<td>${parseInt(user.errors).toLocaleString()} (${user.crash_instances} instances)</td>
 					<td><span class="risk-badge ${getRiskBadgeClass(user.risk)}">${parseFloat(user.risk).toFixed(1)}</span></td>
 					<td>${parseInt(user.last_24h).toLocaleString()}</td>
