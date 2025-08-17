@@ -649,6 +649,18 @@
 							<option value="non-fatal">Errors Only</option>
 						</select>
 					</div>
+
+					<div class="filter-group">
+						<label>Memory Range</label>
+						<select id="memoryFilter">
+							<option value="">All Memory Levels</option>
+							<option value="critical">Critical (<50MB)</option>
+							<option value="low">Low (50-100MB)</option>
+							<option value="medium">Medium (100-200MB)</option>
+							<option value="good">Good (200-500MB)</option>
+							<option value="excellent">Excellent (>500MB)</option>
+						</select>
+					</div>
 			</div>
 		</div>
 
@@ -721,6 +733,16 @@
 			<div class="chart-container">
 				<h3>Top App Versions</h3>
 				<canvas id="appVersionChart"></canvas>
+			</div>
+
+			<div class="chart-container">
+				<h3 id="memoryChartTitle">Memory vs Events</h3>
+				<canvas id="memoryChart"></canvas>
+			</div>
+
+			<div class="chart-container">
+				<h3>Top Crash Names</h3>
+				<canvas id="crashNamesChart"></canvas>
 			</div>
 		</div>
 
@@ -1047,6 +1069,25 @@
 				whereConditions.push('is_fatal = FALSE');
 				console.log('Added filter: is_fatal = FALSE');
 			}
+
+			const memoryFilter = document.getElementById('memoryFilter').value;
+			console.log('Current memory filter value:', memoryFilter);
+			if (memoryFilter === 'critical') {
+				whereConditions.push('avg_memory_free_mb < 50');
+				console.log('Added filter: avg_memory_free_mb < 50');
+			} else if (memoryFilter === 'low') {
+				whereConditions.push('avg_memory_free_mb >= 50 AND avg_memory_free_mb < 100');
+				console.log('Added filter: avg_memory_free_mb 50-100');
+			} else if (memoryFilter === 'medium') {
+				whereConditions.push('avg_memory_free_mb >= 100 AND avg_memory_free_mb < 200');
+				console.log('Added filter: avg_memory_free_mb 100-200');
+			} else if (memoryFilter === 'good') {
+				whereConditions.push('avg_memory_free_mb >= 200 AND avg_memory_free_mb < 500');
+				console.log('Added filter: avg_memory_free_mb 200-500');
+			} else if (memoryFilter === 'excellent') {
+				whereConditions.push('avg_memory_free_mb >= 500');
+				console.log('Added filter: avg_memory_free_mb >= 500');
+			}
 			console.log('All where conditions:', whereConditions);
 			
 			const finalQuery = `
@@ -1193,6 +1234,52 @@
 					GROUP BY time_bucket, app_display_version, app_build_version
 					ORDER BY time_bucket, total_events DESC
 				),
+				memory_breakdown AS (
+					SELECT 
+						CASE 
+							WHEN avg_memory_free_mb IS NULL THEN 'Unknown'
+							WHEN avg_memory_free_mb < 50 THEN 'Critical (<50MB)'
+							WHEN avg_memory_free_mb < 100 THEN 'Low (50-100MB)'
+							WHEN avg_memory_free_mb < 200 THEN 'Medium (100-200MB)'
+							WHEN avg_memory_free_mb < 500 THEN 'Good (200-500MB)'
+							ELSE 'Excellent (>500MB)'
+						END as memory_category,
+						COUNT(*) as total_events,
+						COUNTIF(is_fatal) as crashes,
+						COUNT(*) - COUNTIF(is_fatal) as errors,
+						COUNT(DISTINCT user_id) as affected_users,
+						AVG(avg_memory_free_mb) as avg_free_memory,
+						MIN(avg_memory_free_mb) as min_free_memory,
+						MAX(avg_memory_free_mb) as max_free_memory
+					FROM filtered_data
+					WHERE avg_memory_free_mb IS NOT NULL
+					GROUP BY memory_category
+					ORDER BY 
+						CASE 
+							WHEN memory_category = 'Critical (<50MB)' THEN 1
+							WHEN memory_category = 'Low (50-100MB)' THEN 2
+							WHEN memory_category = 'Medium (100-200MB)' THEN 3
+							WHEN memory_category = 'Good (200-500MB)' THEN 4
+							WHEN memory_category = 'Excellent (>500MB)' THEN 5
+							ELSE 6
+						END
+				),
+				crash_names_breakdown AS (
+					SELECT 
+						COALESCE(crashlytics_issue_title, sentry_latest_error, 'Unknown Error') as crash_name,
+						platform,
+						COUNT(*) as total_events,
+						COUNTIF(is_fatal) as crashes,
+						COUNT(*) - COUNTIF(is_fatal) as errors,
+						COUNT(DISTINCT user_id) as affected_users,
+						AVG(avg_memory_free_mb) as avg_memory_free,
+						AVG(user_risk_score) as avg_risk_score
+					FROM filtered_data
+					WHERE (crashlytics_issue_title IS NOT NULL OR sentry_latest_error IS NOT NULL)
+					GROUP BY crash_name, platform
+					ORDER BY total_events DESC
+					LIMIT 15
+				),
 				metrics AS (
 					SELECT
 						COUNT(DISTINCT user_id) as affected_users,
@@ -1242,6 +1329,40 @@
 						) ORDER BY time_bucket, total_events DESC))
 						FROM app_version_breakdown
 					) as app_version_breakdown_json,
+					(
+						SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(
+							memory_category,
+							total_events,
+							crashes,
+							errors,
+							affected_users,
+							avg_free_memory,
+							min_free_memory,
+							max_free_memory
+						) ORDER BY 
+							CASE 
+								WHEN memory_category = 'Critical (<50MB)' THEN 1
+								WHEN memory_category = 'Low (50-100MB)' THEN 2
+								WHEN memory_category = 'Medium (100-200MB)' THEN 3
+								WHEN memory_category = 'Good (200-500MB)' THEN 4
+								WHEN memory_category = 'Excellent (>500MB)' THEN 5
+								ELSE 6
+							END))
+						FROM memory_breakdown
+					) as memory_breakdown_json,
+					(
+						SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(
+							crash_name,
+							platform,
+							total_events,
+							crashes,
+							errors,
+							affected_users,
+							avg_memory_free,
+							avg_risk_score
+						) ORDER BY total_events DESC))
+						FROM crash_names_breakdown
+					) as crash_names_breakdown_json,
 					(
 						SELECT TO_JSON_STRING(ARRAY_AGG(t))
 						FROM (
@@ -1489,14 +1610,16 @@
 				topAppVersion: data[12]?.v || 'Unknown',
 				topVersionCrashes: parseInt(data[13]?.v) || 0,
 				fatalityStats: JSON.parse(data[14]?.v || '[]'),
-				appVersionBreakdown: JSON.parse(data[15]?.v || '[]')
+				appVersionBreakdown: JSON.parse(data[15]?.v || '[]'),
+				memoryBreakdown: JSON.parse(data[16]?.v || '[]'),
+				crashNamesBreakdown: JSON.parse(data[17]?.v || '[]')
 			};
 
 				// Parse JSON data with validation
 				try {
 					// Daily trend data
-					console.log('Parsing daily trend data from index:', 16, 'Raw value:', data[16]?.v);
-					const dailyTrendRaw = data[16]?.v || '[]';
+					console.log('Parsing daily trend data from index:', 18, 'Raw value:', data[18]?.v);
+					const dailyTrendRaw = data[18]?.v || '[]';
 					console.log('Daily trend raw string:', dailyTrendRaw);
 					const dailyTrend = JSON.parse(dailyTrendRaw);
 					console.log('Parsed daily trend:', dailyTrend);
@@ -1512,7 +1635,7 @@
 					}));
 
 					// Device stats
-					const deviceStats = JSON.parse(data[17]?.v || '[]');
+					const deviceStats = JSON.parse(data[19]?.v || '[]');
 					console.log('Raw device stats:', deviceStats);
 					if (!Array.isArray(deviceStats)) throw new Error('Invalid device stats data');
 					metrics.deviceStats = deviceStats.map(d => ({
@@ -1525,7 +1648,7 @@
 					}));
 
 					// Error types
-					const errorTypes = JSON.parse(data[18]?.v || '[]');
+					const errorTypes = JSON.parse(data[20]?.v || '[]');
 					console.log('Raw error types:', errorTypes);
 					if (!Array.isArray(errorTypes)) throw new Error('Invalid error types data');
 					metrics.errorTypes = errorTypes.map(d => ({
@@ -1536,7 +1659,7 @@
 					}));
 
 					// High risk users
-					const highRiskUsers = JSON.parse(data[19]?.v || '[]');
+					const highRiskUsers = JSON.parse(data[21]?.v || '[]');
 					console.log('Raw high risk users:', highRiskUsers);
 					if (!Array.isArray(highRiskUsers)) throw new Error('Invalid high risk users data');
 					metrics.highRiskUsers = highRiskUsers.map(d => ({
@@ -1568,10 +1691,12 @@
 					console.error('Error parsing JSON data:', e);
 					console.log('Raw JSON data:', {
 						appVersionBreakdown: data[15]?.v,
-						dailyTrend: data[16]?.v,
-						deviceStats: data[17]?.v,
-						errorTypes: data[18]?.v,
-						highRiskUsers: data[19]?.v
+						memoryBreakdown: data[16]?.v,
+						crashNamesBreakdown: data[17]?.v,
+						dailyTrend: data[18]?.v,
+						deviceStats: data[19]?.v,
+						errorTypes: data[20]?.v,
+						highRiskUsers: data[21]?.v
 					});
 					throw new Error('Failed to parse dashboard data: ' + e.message);
 				}
@@ -2380,6 +2505,334 @@
 			} else {
 				console.log('App version chart not rendered. Data:', data.appVersionBreakdown);
 			}
+
+			// Memory vs Crashes Chart
+			const memoryCtx = document.getElementById('memoryChart')?.getContext('2d');
+			if (memoryCtx && data.memoryBreakdown && data.memoryBreakdown.length > 0) {
+				console.log('Memory breakdown data:', data.memoryBreakdown);
+				
+				// Get current crash type filter to determine what to show
+				const crashTypeFilter = document.getElementById('crashTypeFilter').value;
+				
+				const memoryLabels = data.memoryBreakdown.map(m => m.memory_category);
+				const crashData = data.memoryBreakdown.map(m => m.crashes || 0);
+				const errorData = data.memoryBreakdown.map(m => m.errors || 0);
+				
+				// Calculate memory correlation analysis
+				const totalCrashes = crashData.reduce((sum, crashes) => sum + crashes, 0);
+				const criticalAndLowCrashes = data.memoryBreakdown
+					.filter(m => m.memory_category.includes('Critical') || m.memory_category.includes('Low'))
+					.reduce((sum, m) => sum + (m.crashes || 0), 0);
+				const lowMemoryPercentage = totalCrashes > 0 ? ((criticalAndLowCrashes / totalCrashes) * 100).toFixed(1) : 0;
+				
+				// Define colors based on memory severity
+				const backgroundColors = data.memoryBreakdown.map(m => {
+					switch(m.memory_category) {
+						case 'Critical (<50MB)': return '#dc2626'; // Red
+						case 'Low (50-100MB)': return '#ea580c'; // Orange
+						case 'Medium (100-200MB)': return '#d97706'; // Amber
+						case 'Good (200-500MB)': return '#65a30d'; // Lime
+						case 'Excellent (>500MB)': return '#16a34a'; // Green
+						default: return '#6b7280'; // Gray
+					}
+				});
+
+				// Build datasets based on filter
+				let datasets = [];
+				let chartTitle = 'Memory vs Events';
+				
+				if (crashTypeFilter === 'fatal') {
+					// Show only crashes
+					datasets = [{
+						label: 'Crashes',
+						data: crashData,
+						backgroundColor: backgroundColors.map(color => color + '99'),
+						borderColor: backgroundColors,
+						borderWidth: 2,
+						borderRadius: 4
+					}];
+					chartTitle = `Memory vs Crashes (${lowMemoryPercentage}% in Critical/Low Memory)`;
+				} else if (crashTypeFilter === 'non-fatal') {
+					// Show only errors
+					datasets = [{
+						label: 'Errors',
+						data: errorData,
+						backgroundColor: backgroundColors.map(color => color + '33'),
+						borderColor: backgroundColors,
+						borderWidth: 1,
+						borderRadius: 4
+					}];
+					chartTitle = 'Memory vs Errors';
+				} else {
+					// Show both crashes and errors
+					datasets = [
+						{
+							label: 'Crashes',
+							data: crashData,
+							backgroundColor: backgroundColors.map(color => color + '99'),
+							borderColor: backgroundColors,
+							borderWidth: 2,
+							borderRadius: 4
+						},
+						{
+							label: 'Errors',
+							data: errorData,
+							backgroundColor: backgroundColors.map(color => color + '33'),
+							borderColor: backgroundColors,
+							borderWidth: 1,
+							borderRadius: 4
+						}
+					];
+					chartTitle = `Memory vs Events (${lowMemoryPercentage}% crashes in Critical/Low Memory)`;
+				}
+
+				// Update chart title in HTML
+				document.getElementById('memoryChartTitle').textContent = chartTitle;
+
+				if (charts.memory) {
+					charts.memory.destroy();
+				}
+
+				// For pie chart, we need to restructure the data
+				let pieData = [];
+				let pieColors = [];
+				let pieLabels = [];
+				
+				if (crashTypeFilter === 'fatal') {
+					// Show only crashes in pie chart
+					data.memoryBreakdown.forEach((m, index) => {
+						if (m.crashes > 0) {
+							pieData.push(m.crashes);
+							pieLabels.push(m.memory_category);
+							pieColors.push(backgroundColors[index]);
+						}
+					});
+				} else if (crashTypeFilter === 'non-fatal') {
+					// Show only errors in pie chart
+					data.memoryBreakdown.forEach((m, index) => {
+						if (m.errors > 0) {
+							pieData.push(m.errors);
+							pieLabels.push(m.memory_category);
+							pieColors.push(backgroundColors[index]);
+						}
+					});
+				} else {
+					// Show total events (crashes + errors) in pie chart
+					data.memoryBreakdown.forEach((m, index) => {
+						if (m.total_events > 0) {
+							pieData.push(m.total_events);
+							pieLabels.push(m.memory_category);
+							pieColors.push(backgroundColors[index]);
+						}
+					});
+				}
+
+				charts.memory = new Chart(memoryCtx, {
+					type: 'pie',
+					data: {
+						labels: pieLabels,
+						datasets: [{
+							data: pieData,
+							backgroundColor: pieColors,
+							borderColor: pieColors.map(color => color.replace(/[0-9a-f]{2}$/i, 'ff')), // Full opacity for borders
+							borderWidth: 2,
+							hoverOffset: 4
+						}]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						plugins: {
+							title: {
+								display: true,
+								text: chartTitle,
+								font: {
+									size: 16,
+									weight: 'bold'
+								},
+								padding: 20
+							},
+							legend: {
+								position: 'right',
+								labels: {
+									usePointStyle: true,
+									pointStyle: 'circle',
+									padding: 15,
+									font: {
+										size: 12
+									}
+								}
+							},
+							tooltip: {
+								callbacks: {
+									label: function(context) {
+										// Find the correct memory data based on the label
+										const memory = data.memoryBreakdown.find(m => m.memory_category === context.label);
+										const percentage = ((context.parsed / pieData.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
+										
+										let eventType = 'events';
+										if (crashTypeFilter === 'fatal') {
+											eventType = 'crashes';
+										} else if (crashTypeFilter === 'non-fatal') {
+											eventType = 'errors';
+										}
+										
+										const details = [
+											`${context.label}: ${context.parsed.toLocaleString()} ${eventType} (${percentage}%)`,
+											`Affected Users: ${memory?.affected_users?.toLocaleString() || 'N/A'}`,
+											`Avg Free Memory: ${memory?.avg_free_memory?.toFixed(1) || 'N/A'}MB`,
+											`Range: ${memory?.min_free_memory?.toFixed(1) || 'N/A'}-${memory?.max_free_memory?.toFixed(1) || 'N/A'}MB`
+										];
+										
+										// Add correlation info for crashes
+										if (crashTypeFilter === 'fatal' || crashTypeFilter === '') {
+											const memoryCategory = memory?.memory_category || '';
+											if (memoryCategory.includes('Critical') || memoryCategory.includes('Low')) {
+												details.push('⚠️ Low memory situation!');
+											}
+										}
+										return details;
+									}
+								}
+							}
+						}
+					}
+				});
+			} else {
+				console.log('Memory chart not rendered. Data:', data.memoryBreakdown);
+			}
+
+			// Crash Names Breakdown Chart
+			const crashNamesCtx = document.getElementById('crashNamesChart')?.getContext('2d');
+			if (crashNamesCtx && data.crashNamesBreakdown && data.crashNamesBreakdown.length > 0) {
+				console.log('Crash names breakdown data:', data.crashNamesBreakdown);
+				
+				// Get current crash type filter
+				const crashTypeFilter = document.getElementById('crashTypeFilter').value;
+				
+				// Prepare data based on filter
+				let chartData = [];
+				let chartLabels = [];
+				let chartColors = [];
+				let chartTitle = '';
+				
+				if (crashTypeFilter === 'fatal') {
+					// Show only crashes
+					data.crashNamesBreakdown.forEach((crash, index) => {
+						if (crash.crashes > 0) {
+							chartData.push(crash.crashes);
+							// Truncate long crash names for better display
+							const truncatedName = crash.crash_name.length > 30 ? 
+								crash.crash_name.substring(0, 30) + '...' : crash.crash_name;
+							chartLabels.push(`${truncatedName} (${crash.platform})`);
+							chartColors.push(`hsl(${(index * 137.5) % 360}, 70%, 60%)`); // Generate distinct colors
+						}
+					});
+					chartTitle = `Top Crash Names (${chartData.length} different crashes)`;
+				} else if (crashTypeFilter === 'non-fatal') {
+					// Show only errors
+					data.crashNamesBreakdown.forEach((crash, index) => {
+						if (crash.errors > 0) {
+							chartData.push(crash.errors);
+							const truncatedName = crash.crash_name.length > 30 ? 
+								crash.crash_name.substring(0, 30) + '...' : crash.crash_name;
+							chartLabels.push(`${truncatedName} (${crash.platform})`);
+							chartColors.push(`hsl(${(index * 137.5) % 360}, 70%, 60%)`);
+						}
+					});
+					chartTitle = `Top Error Names (${chartData.length} different errors)`;
+				} else {
+					// Show total events
+					data.crashNamesBreakdown.forEach((crash, index) => {
+						if (crash.total_events > 0) {
+							chartData.push(crash.total_events);
+							const truncatedName = crash.crash_name.length > 30 ? 
+								crash.crash_name.substring(0, 30) + '...' : crash.crash_name;
+							chartLabels.push(`${truncatedName} (${crash.platform})`);
+							chartColors.push(`hsl(${(index * 137.5) % 360}, 70%, 60%)`);
+						}
+					});
+					chartTitle = `Top Event Names (${chartData.length} different issues)`;
+				}
+
+				if (charts.crashNames) {
+					charts.crashNames.destroy();
+				}
+
+				charts.crashNames = new Chart(crashNamesCtx, {
+					type: 'doughnut',
+					data: {
+						labels: chartLabels,
+						datasets: [{
+							data: chartData,
+							backgroundColor: chartColors,
+							borderColor: chartColors.map(color => color.replace('60%', '80%')), // Darker borders
+							borderWidth: 2,
+							hoverOffset: 6
+						}]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						plugins: {
+							title: {
+								display: true,
+								text: chartTitle,
+								font: {
+									size: 16,
+									weight: 'bold'
+								},
+								padding: 20
+							},
+							legend: {
+								position: 'right',
+								labels: {
+									usePointStyle: true,
+									pointStyle: 'circle',
+									padding: 8,
+									font: {
+										size: 10
+									},
+									maxWidth: 200
+								}
+							},
+							tooltip: {
+								callbacks: {
+									label: function(context) {
+										const crash = data.crashNamesBreakdown.find(c => {
+											const truncatedName = c.crash_name.length > 30 ? 
+												c.crash_name.substring(0, 30) + '...' : c.crash_name;
+											return context.label.includes(truncatedName);
+										});
+										
+										const percentage = ((context.parsed / chartData.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
+										
+										let eventType = 'events';
+										if (crashTypeFilter === 'fatal') {
+											eventType = 'crashes';
+										} else if (crashTypeFilter === 'non-fatal') {
+											eventType = 'errors';
+										}
+										
+										const details = [
+											`${context.parsed.toLocaleString()} ${eventType} (${percentage}%)`,
+											`Full Name: ${crash?.crash_name || 'Unknown'}`,
+											`Platform: ${crash?.platform || 'Unknown'}`,
+											`Affected Users: ${crash?.affected_users?.toLocaleString() || 'N/A'}`,
+											`Avg Memory: ${crash?.avg_memory_free?.toFixed(1) || 'N/A'}MB`,
+											`Risk Score: ${crash?.avg_risk_score?.toFixed(1) || 'N/A'}`
+										];
+										
+										return details;
+									}
+								}
+							}
+						}
+					}
+				});
+			} else {
+				console.log('Crash names chart not rendered. Data:', data.crashNamesBreakdown);
+			}
 		}
 
 		// Auto-refresh toggle
@@ -2400,6 +2853,7 @@
 		document.getElementById('riskFilter').addEventListener('change', refreshData);
 		document.getElementById('sourceFilter').addEventListener('change', refreshData);
 		document.getElementById('crashTypeFilter').addEventListener('change', refreshData);
+		document.getElementById('memoryFilter').addEventListener('change', refreshData);
 
 		// Export table data to CSV
 		async function exportTableToCsv() {
