@@ -1550,6 +1550,10 @@
 			relativeDateContainer.style.display = 'block';
 			absoluteDateContainer.style.display = 'none';
 			
+			// Reset table sorting to default
+			userTableSort = { column: 'risk', direction: 'desc' };
+			originalUserTableData = [];
+			
 			// Close the modal
 			closeNoResultsModal();
 			
@@ -2458,10 +2462,12 @@
 					console.log('No meaningful results found, showing modal');
 					showNoResultsModal();
 					
-					// Still update the UI with empty data to reset any previous results
+					// Reset table data and update the UI with empty data to reset any previous results
+					originalUserTableData = [];
 					updateMetrics(metrics);
 				} else {
-					// Update UI with results
+					// Reset table data for new search results and update UI
+					originalUserTableData = [];
 					updateMetrics(metrics);
 				}
 				
@@ -2609,11 +2615,12 @@
 
 		}
 
-		// Sort state for user table
+		// Sort state for user table and store the original data
 		let userTableSort = {
 			column: 'risk',
 			direction: 'desc'
 		};
+		let originalUserTableData = []; // Store the original filtered data
 
 		function updateUserTable(users) {
 			const tbody = document.getElementById('userTableBody');
@@ -2627,6 +2634,17 @@
 				tableLoading.style.display = 'none';
 				table.style.display = 'none';
 				return;
+			}
+
+			// Store the original data for sorting (only when we have new data from search)
+			const isNewData = originalUserTableData.length === 0 || 
+							  originalUserTableData.length !== users.length ||
+							  (users.length > 0 && originalUserTableData.length > 0 && 
+							   originalUserTableData[0]?.user_id !== users[0]?.user_id);
+			
+			if (isNewData) {
+				originalUserTableData = [...users];
+				console.log('Updated original table data with new search results');
 			}
 
 			// Sort users based on current sort state
@@ -2672,8 +2690,8 @@
 						});
 						th.classList.add(`sort-${userTableSort.direction}`);
 
-						// Re-render table
-						updateUserTable(users);
+						// Re-render table with ORIGINAL filtered data, not all data
+						updateUserTable(originalUserTableData);
 					});
 				});
 				table.dataset.sortHandlersAdded = 'true';
@@ -3621,28 +3639,93 @@
 				exportBtn.disabled = true;
 				exportBtn.textContent = '⏳ Exporting...';
 
-				// Build query parameters
-				const dateRange = document.getElementById('dateRange').value;
+				// Build query parameters using the same logic as the main search
 				const platform = document.getElementById('platformFilter').value;
 				const riskLevel = document.getElementById('riskFilter').value;
 				const source = document.getElementById('sourceFilter').value;
 				const crashType = document.getElementById('crashTypeFilter').value;
 
-				// Build date filter
+				// Build date filter based on selected range type (same as buildQuery function)
 				let dateFilter;
-				if (dateRange === 'hour') {
-					dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)`;
+				const dateRangeType = document.querySelector('input[name="dateRangeType"]:checked')?.value || 'relative';
+				
+				if (dateRangeType === 'absolute') {
+					// Use absolute date range
+					const dateFrom = document.getElementById('dateFrom').value;
+					const dateTo = document.getElementById('dateTo').value;
+					
+					if (dateFrom && dateTo) {
+						const formatDateForBigQuery = (dateOnly, isEndDate = false) => {
+							if (!dateOnly) return null;
+							return isEndDate ? `${dateOnly} 23:59:59` : `${dateOnly} 00:00:00`;
+						};
+						
+						const formattedDateFrom = formatDateForBigQuery(dateFrom, false);
+						const formattedDateTo = formatDateForBigQuery(dateTo, true);
+						
+						dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP('${formattedDateFrom}') 
+									  AND TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) <= TIMESTAMP('${formattedDateTo}')`;
+					} else {
+						dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)`;
+					}
 				} else {
-					dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${dateRange} DAY)`;
+					// Use relative date range
+					const dateRange = document.getElementById('dateRange').value;
+					
+					if (dateRange === 'custom_hours') {
+						const customHours = document.getElementById('customHours').value || '12';
+						dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${customHours} HOUR)`;
+					} else if (dateRange === 'hour') {
+						dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)`;
+					} else {
+						dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${dateRange} DAY)`;
+					}
 				}
 
-				// Build where conditions
+				// Build where conditions (including multi-select filters)
 				let whereConditions = [];
 				if (platform) whereConditions.push(`platform = '${platform}'`);
 				if (riskLevel) whereConditions.push(`user_risk_score >= ${riskLevel}`);
 				if (source) whereConditions.push(`data_source = '${source}'`);
 				if (crashType === 'fatal') whereConditions.push('is_fatal = TRUE');
 				if (crashType === 'non-fatal') whereConditions.push('is_fatal = FALSE');
+
+				// Handle multi-select memory filters
+				const memoryFilters = getMultiSelectValues('memoryOptions');
+				if (memoryFilters.length > 0) {
+					const memoryConditions = [];
+					memoryFilters.forEach(filter => {
+						switch(filter) {
+							case 'critical':
+								memoryConditions.push('avg_memory_free_mb < 50');
+								break;
+							case 'low':
+								memoryConditions.push('(avg_memory_free_mb >= 50 AND avg_memory_free_mb < 100)');
+								break;
+							case 'medium':
+								memoryConditions.push('(avg_memory_free_mb >= 100 AND avg_memory_free_mb < 200)');
+								break;
+							case 'good':
+								memoryConditions.push('(avg_memory_free_mb >= 200 AND avg_memory_free_mb < 500)');
+								break;
+							case 'excellent':
+								memoryConditions.push('avg_memory_free_mb >= 500');
+								break;
+						}
+					});
+					if (memoryConditions.length > 0) {
+						whereConditions.push(`(${memoryConditions.join(' OR ')})`);
+					}
+				}
+
+				// Handle multi-select app version filters
+				const appVersionFilters = getMultiSelectValues('appVersionOptions');
+				if (appVersionFilters.length > 0) {
+					const versionConditions = appVersionFilters.map(displayVersion => 
+						`app_display_version = '${displayVersion}'`
+					);
+					whereConditions.push(`(${versionConditions.join(' OR ')})`);
+				}
 
 				// Build export query
 				const query = `
