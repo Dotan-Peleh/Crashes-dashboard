@@ -276,6 +276,282 @@
 			letter-spacing: 0.5px;
 		}
 
+		.multi-select {
+			position: relative;
+			display: inline-block;
+			width: 100%;
+		}
+
+		.multi-select-dropdown {
+			padding: 8px 12px;
+			border: 2px solid #e2e8f0;
+			border-radius: 8px;
+			font-size: 14px;
+			background: white;
+			cursor: pointer;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			min-height: 40px;
+			transition: all 0.3s ease;
+		}
+
+		.multi-select-dropdown:hover {
+			border-color: #667eea;
+		}
+
+		.multi-select-dropdown.open {
+			border-color: #667eea;
+			box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+		}
+
+		.multi-select-options {
+			position: absolute;
+			top: 100%;
+			left: 0;
+			right: 0;
+			background: white;
+			border: 2px solid #667eea;
+			border-radius: 8px;
+			margin-top: 2px;
+			max-height: 200px;
+			overflow-y: auto;
+			z-index: 1000;
+			display: none;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+		}
+
+		.multi-select-options.show {
+			display: block;
+		}
+
+		.multi-select-option {
+			padding: 8px 12px;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			cursor: pointer;
+			transition: background-color 0.2s ease;
+		}
+
+		.multi-select-option:hover {
+			background-color: #f7fafc;
+		}
+
+		.multi-select-option input[type="checkbox"] {
+			margin: 0;
+		}
+
+		.multi-select-placeholder {
+			color: #718096;
+			font-style: italic;
+		}
+
+		.multi-select-selected {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 4px;
+		}
+
+		.multi-select-tag {
+			background: #667eea;
+			color: white;
+			padding: 2px 6px;
+			border-radius: 4px;
+			font-size: 12px;
+			display: flex;
+			align-items: center;
+			gap: 4px;
+		}
+
+		.multi-select-tag .remove {
+			cursor: pointer;
+			font-weight: bold;
+		}
+
+		.multi-select-actions {
+			display: flex;
+			gap: 8px;
+			padding: 8px 12px;
+			border-bottom: 1px solid #e2e8f0;
+			background: #f7fafc;
+		}
+
+		.multi-select-actions button {
+			background: #667eea;
+			color: white;
+			border: none;
+			padding: 4px 8px;
+			border-radius: 4px;
+			font-size: 11px;
+			cursor: pointer;
+			transition: background-color 0.2s;
+		}
+
+		.multi-select-actions button:hover {
+			background: #5a67d8;
+		}
+
+		.multi-select-actions .clear-btn {
+			background: #ef4444;
+		}
+
+		.multi-select-actions .clear-btn:hover {
+			background: #dc2626;
+		}
+
+		.date-range-container {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+		}
+
+		.date-range-type {
+			display: flex;
+			gap: 10px;
+			align-items: center;
+		}
+
+		.date-range-type input[type="radio"] {
+			margin: 0;
+		}
+
+		.hours-input-container {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+		}
+
+		.hours-input-container input[type="number"] {
+			width: 60px;
+			padding: 4px 8px;
+			border: 2px solid #e2e8f0;
+			border-radius: 4px;
+			font-size: 12px;
+		}
+
+		.absolute-date-container {
+			display: flex;
+			flex-direction: column;
+			gap: 5px;
+		}
+
+		.absolute-date-inputs {
+			display: flex;
+			gap: 5px;
+			align-items: center;
+		}
+
+		.absolute-date-inputs input[type="date"] {
+			padding: 6px 8px;
+			border: 2px solid #e2e8f0;
+			border-radius: 4px;
+			font-size: 12px;
+		}
+
+		.search-button-container {
+			display: flex;
+			justify-content: center;
+			margin-top: 20px;
+			padding-top: 20px;
+			border-top: 1px solid #e2e8f0;
+		}
+
+		.btn-search {
+			background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+			color: white;
+			border: none;
+			padding: 12px 32px;
+			border-radius: 8px;
+			font-weight: 600;
+			font-size: 16px;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+		}
+
+		.btn-search:hover:not(:disabled) {
+			transform: translateY(-2px);
+			box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+		}
+
+		.btn-search:disabled {
+			opacity: 0.6;
+			cursor: not-allowed;
+			transform: none;
+		}
+
+		.no-results-modal {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.5);
+			z-index: 1000;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.no-results-modal.show {
+			display: flex;
+		}
+
+		.no-results-content {
+			background: white;
+			border-radius: 15px;
+			padding: 30px;
+			max-width: 400px;
+			width: 90%;
+			text-align: center;
+			box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+		}
+
+		.no-results-content .icon {
+			font-size: 48px;
+			margin-bottom: 15px;
+		}
+
+		.no-results-content h2 {
+			margin-bottom: 15px;
+			color: #2d3748;
+			font-size: 24px;
+		}
+
+		.no-results-content p {
+			color: #718096;
+			margin-bottom: 25px;
+			line-height: 1.6;
+		}
+
+		.no-results-content .suggestions {
+			background: #f7fafc;
+			border-radius: 8px;
+			padding: 15px;
+			margin-bottom: 20px;
+			text-align: left;
+		}
+
+		.no-results-content .suggestions h4 {
+			color: #4a5568;
+			margin-bottom: 8px;
+			font-size: 14px;
+		}
+
+		.no-results-content .suggestions ul {
+			color: #718096;
+			font-size: 13px;
+			margin-left: 15px;
+		}
+
+		.no-results-content .suggestions li {
+			margin-bottom: 4px;
+		}
+
 		select, input[type="date"] {
 			padding: 8px 12px;
 			border: 2px solid #e2e8f0;
@@ -602,14 +878,39 @@
 			<div class="filters">
 				<div class="filter-group">
 					<label>Date Range</label>
-					<select id="dateRange">
-						<option value="hour">Last hour</option>
-						<option value="1">Last 24 hours</option>
-						<option value="3">Last 3 days</option>
-						<option value="7">Last 7 days</option>
-						<option value="14">Last 14 days</option>
-						<option value="30">Last 30 days</option>
-					</select>
+					<div class="date-range-container">
+						<div class="date-range-type">
+							<input type="radio" id="relativeDateType" name="dateRangeType" value="relative" checked>
+							<label for="relativeDateType" style="text-transform: none; font-size: 14px;">Relative</label>
+							<input type="radio" id="absoluteDateType" name="dateRangeType" value="absolute">
+							<label for="absoluteDateType" style="text-transform: none; font-size: 14px;">Absolute</label>
+						</div>
+						
+						<div id="relativeDateContainer">
+							<select id="dateRange">
+								<option value="hour">Last hour</option>
+								<option value="1">Last 24 hours</option>
+								<option value="3">Last 3 days</option>
+								<option value="7">Last 7 days</option>
+								<option value="14">Last 14 days</option>
+								<option value="30">Last 30 days</option>
+								<option value="custom_hours">Custom hours</option>
+							</select>
+							<div id="hoursInputContainer" class="hours-input-container" style="display: none;">
+								<span>Last</span>
+								<input type="number" id="customHours" min="1" max="168" value="12" placeholder="12">
+								<span>hours</span>
+							</div>
+						</div>
+						
+						<div id="absoluteDateContainer" class="absolute-date-container" style="display: none;">
+							<div class="absolute-date-inputs">
+								<input type="date" id="dateFrom" title="Start Date">
+								<span>to</span>
+								<input type="date" id="dateTo" title="End Date">
+							</div>
+						</div>
+					</div>
 				</div>
 
 				<div class="filter-group">
@@ -631,36 +932,83 @@
 					</select>
 				</div>
 
-									<div class="filter-group">
-						<label>Data Source</label>
-						<select id="sourceFilter">
-							<option value="">All Sources</option>
-							<option value="Both">Both Systems</option>
-							<option value="Crashlytics Only">Crashlytics Only</option>
-							<option value="Sentry Only">Sentry Only</option>
-						</select>
-					</div>
+				<div class="filter-group">
+					<label>Data Source</label>
+					<select id="sourceFilter">
+						<option value="">All Sources</option>
+						<option value="Both">Both Systems</option>
+						<option value="Crashlytics Only">Crashlytics Only</option>
+						<option value="Sentry Only">Sentry Only</option>
+					</select>
+				</div>
 
-					<div class="filter-group">
-						<label>Event Type</label>
-						<select id="crashTypeFilter">
-							<option value="">All Events</option>
-							<option value="fatal">Crashes Only</option>
-							<option value="non-fatal">Errors Only</option>
-						</select>
-					</div>
+				<div class="filter-group">
+					<label>Event Type</label>
+					<select id="crashTypeFilter">
+						<option value="">All Events</option>
+						<option value="fatal">Crashes Only</option>
+						<option value="non-fatal">Errors Only</option>
+					</select>
+				</div>
 
-					<div class="filter-group">
-						<label>Memory Range</label>
-						<select id="memoryFilter">
-							<option value="">All Memory Levels</option>
-							<option value="critical">Critical (<50MB)</option>
-							<option value="low">Low (50-100MB)</option>
-							<option value="medium">Medium (100-200MB)</option>
-							<option value="good">Good (200-500MB)</option>
-							<option value="excellent">Excellent (>500MB)</option>
-						</select>
+				<div class="filter-group">
+					<label>Memory Range</label>
+					<div class="multi-select" id="memoryMultiSelect">
+						<div class="multi-select-dropdown" id="memoryDropdown">
+							<div class="multi-select-placeholder">Select Memory Levels</div>
+							<span>▼</span>
+						</div>
+						<div class="multi-select-options" id="memoryOptions">
+							<div class="multi-select-actions">
+								<button onclick="selectAllOptions('memoryOptions')" title="Select All">Select All</button>
+								<button onclick="clearAllOptions('memoryOptions')" class="clear-btn" title="Clear All">Clear All</button>
+							</div>
+							<div class="multi-select-option">
+								<input type="checkbox" id="mem_critical" value="critical">
+								<label for="mem_critical">Critical (<50MB)</label>
+							</div>
+							<div class="multi-select-option">
+								<input type="checkbox" id="mem_low" value="low">
+								<label for="mem_low">Low (50-100MB)</label>
+							</div>
+							<div class="multi-select-option">
+								<input type="checkbox" id="mem_medium" value="medium">
+								<label for="mem_medium">Medium (100-200MB)</label>
+							</div>
+							<div class="multi-select-option">
+								<input type="checkbox" id="mem_good" value="good">
+								<label for="mem_good">Good (200-500MB)</label>
+							</div>
+							<div class="multi-select-option">
+								<input type="checkbox" id="mem_excellent" value="excellent">
+								<label for="mem_excellent">Excellent (>500MB)</label>
+							</div>
+						</div>
 					</div>
+				</div>
+
+				<div class="filter-group">
+					<label>App Version</label>
+					<div class="multi-select" id="appVersionMultiSelect">
+						<div class="multi-select-dropdown" id="appVersionDropdown">
+							<div class="multi-select-placeholder">Select App Versions</div>
+							<span>▼</span>
+						</div>
+						<div class="multi-select-options" id="appVersionOptions">
+							<div class="multi-select-actions">
+								<button onclick="selectAllOptions('appVersionOptions')" title="Select All">Select All</button>
+								<button onclick="clearAllOptions('appVersionOptions')" class="clear-btn" title="Clear All">Clear All</button>
+							</div>
+							<!-- Options will be populated dynamically -->
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="search-button-container">
+				<button class="btn-search" id="searchButton" onclick="executeSearch()" disabled>
+					🔍 Search Results
+				</button>
 			</div>
 		</div>
 
@@ -820,6 +1168,34 @@
 		</div>
 	</div>
 
+	<!-- No Results Modal -->
+	<div class="no-results-modal" id="noResultsModal">
+		<div class="no-results-content">
+			<div class="icon">🔍</div>
+			<h2>No Results Found</h2>
+			<p>Your search didn't return any data. This could be due to your filter criteria or the selected date range.</p>
+			
+			<div class="suggestions">
+				<h4>Try adjusting your filters:</h4>
+				<ul>
+					<li>Expand your date range</li>
+					<li>Remove some filter selections</li>
+					<li>Try different platforms or risk levels</li>
+					<li>Clear memory or app version filters</li>
+				</ul>
+			</div>
+
+			<div style="display: flex; gap: 10px; justify-content: center;">
+				<button class="btn-primary" onclick="closeNoResultsModal()">
+					✓ Got it
+				</button>
+				<button class="btn-secondary" onclick="clearAllFiltersAndSearch()">
+					🔄 Clear Filters & Search
+				</button>
+			</div>
+		</div>
+	</div>
+
 	<script>
 		// Configuration
 		const CONFIG = {
@@ -838,6 +1214,7 @@
 		let accessToken = null;
 		let gapiInited = false;
 		let gisInited = false;
+		let availableAppVersions = [];
 
 		function loadConfigFromStorage() {
 			const savedClientId = localStorage.getItem('bq_client_id');
@@ -874,8 +1251,11 @@
 					document.getElementById('authBtn').textContent = '✓ Connected';
 					document.getElementById('refreshBtn').disabled = false;
 					
-					// Refresh data automatically
-					refreshData();
+					// Initialize filter components and enable search
+					initializeFilterComponents();
+					await loadAvailableAppVersions();
+					updateSearchButtonState();
+					refreshData(); // Initial load
 				} catch (e) {
 					console.log('Stored token expired, need to re-authenticate');
 					localStorage.removeItem('bq_access_token');
@@ -899,6 +1279,304 @@
 		}
 
 		// Configuration is now hardcoded
+
+		// Multi-select dropdown functionality
+		function initializeMultiSelect(containerId, optionsId, dropdownId) {
+			const container = document.getElementById(containerId);
+			const dropdown = document.getElementById(dropdownId);
+			const options = document.getElementById(optionsId);
+			
+			if (!container || !dropdown || !options) return;
+
+			// Toggle dropdown
+			dropdown.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const isOpen = options.classList.contains('show');
+				
+				// Close all other dropdowns
+				document.querySelectorAll('.multi-select-options').forEach(opt => {
+					opt.classList.remove('show');
+				});
+				document.querySelectorAll('.multi-select-dropdown').forEach(dd => {
+					dd.classList.remove('open');
+				});
+				
+				// Toggle current dropdown
+				if (!isOpen) {
+					options.classList.add('show');
+					dropdown.classList.add('open');
+				}
+			});
+
+			// Handle option selection (no automatic refresh)
+			options.addEventListener('change', (e) => {
+				if (e.target.type === 'checkbox') {
+					updateMultiSelectDisplay(containerId, optionsId, dropdownId);
+				}
+			});
+
+			// Close dropdown when clicking outside
+			document.addEventListener('click', (e) => {
+				if (!container.contains(e.target)) {
+					options.classList.remove('show');
+					dropdown.classList.remove('open');
+				}
+			});
+		}
+
+		function updateMultiSelectDisplay(containerId, optionsId, dropdownId) {
+			const dropdown = document.getElementById(dropdownId);
+			const options = document.getElementById(optionsId);
+			const checkboxes = options.querySelectorAll('input[type="checkbox"]:checked');
+			
+			const displayDiv = dropdown.querySelector('.multi-select-placeholder, .multi-select-selected') || 
+								dropdown.querySelector('div:first-child');
+			
+			if (checkboxes.length === 0) {
+				displayDiv.className = 'multi-select-placeholder';
+				displayDiv.innerHTML = containerId.includes('memory') ? 'Select Memory Levels' : 'Select App Versions';
+			} else {
+				displayDiv.className = 'multi-select-selected';
+				const tags = Array.from(checkboxes).map(cb => {
+					const label = cb.nextElementSibling?.textContent || cb.value;
+					return `<span class="multi-select-tag">${label} <span class="remove" onclick="toggleMultiSelectOption('${cb.id}')">&times;</span></span>`;
+				}).join('');
+				displayDiv.innerHTML = tags;
+			}
+		}
+
+		function toggleMultiSelectOption(checkboxId) {
+			const checkbox = document.getElementById(checkboxId);
+			if (checkbox) {
+				checkbox.checked = !checkbox.checked;
+				const containerId = checkbox.closest('.multi-select').id;
+				const optionsId = checkbox.closest('.multi-select-options').id;
+				const dropdownId = checkbox.closest('.multi-select').querySelector('.multi-select-dropdown').id;
+				updateMultiSelectDisplay(containerId, optionsId, dropdownId);
+				// No automatic refresh - user must click Search button
+			}
+		}
+
+		function getMultiSelectValues(optionsId) {
+			const options = document.getElementById(optionsId);
+			const checkboxes = options.querySelectorAll('input[type="checkbox"]:checked');
+			return Array.from(checkboxes).map(cb => cb.value);
+		}
+
+		// Date range type switching
+		function initializeDateRangeControls() {
+			const relativeDateType = document.getElementById('relativeDateType');
+			const absoluteDateType = document.getElementById('absoluteDateType');
+			const relativeDateContainer = document.getElementById('relativeDateContainer');
+			const absoluteDateContainer = document.getElementById('absoluteDateContainer');
+			const dateRange = document.getElementById('dateRange');
+			const hoursInputContainer = document.getElementById('hoursInputContainer');
+			const customHours = document.getElementById('customHours');
+			const dateFrom = document.getElementById('dateFrom');
+			const dateTo = document.getElementById('dateTo');
+
+			// Set default dates for absolute range (last 7 days)
+			const now = new Date();
+			const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+			dateFrom.value = weekAgo.toISOString().slice(0, 10); // YYYY-MM-DD format for date input
+			dateTo.value = now.toISOString().slice(0, 10);
+
+			// Toggle between relative and absolute date inputs
+			function toggleDateRangeType() {
+				if (relativeDateType.checked) {
+					relativeDateContainer.style.display = 'block';
+					absoluteDateContainer.style.display = 'none';
+				} else {
+					relativeDateContainer.style.display = 'none';
+					absoluteDateContainer.style.display = 'block';
+				}
+				// No automatic refresh - user must click Search button
+			}
+
+			// Show/hide custom hours input
+			function toggleCustomHours() {
+				if (dateRange.value === 'custom_hours') {
+					hoursInputContainer.style.display = 'flex';
+				} else {
+					hoursInputContainer.style.display = 'none';
+				}
+			}
+
+			relativeDateType.addEventListener('change', toggleDateRangeType);
+			absoluteDateType.addEventListener('change', toggleDateRangeType);
+			dateRange.addEventListener('change', toggleCustomHours);
+			// No automatic refresh listeners - user must click Search button
+
+			// Initialize visibility
+			toggleDateRangeType();
+			toggleCustomHours();
+		}
+
+		// Populate app versions dynamically
+		async function loadAvailableAppVersions() {
+			if (!isAuthenticated) return;
+			
+			try {
+				const query = `
+					SELECT 
+						app_display_version,
+						SUM(usage_count) as total_usage_count
+					FROM (
+						SELECT DISTINCT
+							app_display_version,
+							app_build_version,
+							COUNT(*) as usage_count
+						FROM \`${CONFIG.PROJECT_ID}.${CONFIG.DATASET_ID}.crash_analytics_dashboard\`
+						WHERE app_display_version IS NOT NULL
+						  AND TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+						GROUP BY app_display_version, app_build_version
+					)
+					GROUP BY app_display_version
+					ORDER BY 
+						CAST(REGEXP_EXTRACT(app_display_version, r'^(\\d+)') AS INT64) DESC,
+						CAST(REGEXP_EXTRACT(app_display_version, r'\\.(\\d+)') AS INT64) DESC,
+						CAST(REGEXP_EXTRACT(app_display_version, r'\\.(\\d+)$') AS INT64) DESC,
+						total_usage_count DESC
+					LIMIT 15
+				`;
+
+				const result = await executeBigQuery(query);
+				if (result.rows && result.rows.length > 0) {
+					availableAppVersions = result.rows.map(row => ({
+						display_version: row.f[0]?.v || '',
+						usage_count: parseInt(row.f[1]?.v) || 0,
+						label: `${row.f[0]?.v || 'Unknown'}`
+					}));
+
+					// Populate app version options (preserve the actions bar)
+					const optionsContainer = document.getElementById('appVersionOptions');
+					const actionsHtml = optionsContainer.querySelector('.multi-select-actions')?.outerHTML || '';
+					const optionsHtml = availableAppVersions.map((version, index) => `
+						<div class="multi-select-option">
+							<input type="checkbox" id="app_version_${index}" value="${version.display_version}">
+							<label for="app_version_${index}">${version.label} (${version.usage_count} events)</label>
+						</div>
+					`).join('');
+					optionsContainer.innerHTML = actionsHtml + optionsHtml;
+				}
+			} catch (error) {
+				console.error('Failed to load app versions:', error);
+			}
+		}
+
+		// Initialize all filter components
+		function initializeFilterComponents() {
+			initializeDateRangeControls();
+			initializeMultiSelect('memoryMultiSelect', 'memoryOptions', 'memoryDropdown');
+			initializeMultiSelect('appVersionMultiSelect', 'appVersionOptions', 'appVersionDropdown');
+		}
+
+		// Execute search when user clicks the Search button
+		function executeSearch() {
+			if (!isAuthenticated) {
+				authenticate();
+				return;
+			}
+			refreshData();
+		}
+
+		// Enable/disable search button based on authentication
+		function updateSearchButtonState() {
+			const searchButton = document.getElementById('searchButton');
+			if (searchButton) {
+				searchButton.disabled = !isAuthenticated;
+			}
+		}
+
+		// Select all options in a multi-select dropdown
+		function selectAllOptions(optionsId) {
+			const options = document.getElementById(optionsId);
+			const checkboxes = options.querySelectorAll('input[type="checkbox"]');
+			checkboxes.forEach(checkbox => {
+				checkbox.checked = true;
+			});
+			
+			// Update display for the affected multi-select
+			const multiSelectContainer = options.closest('.multi-select');
+			const containerId = multiSelectContainer.id;
+			const dropdownId = multiSelectContainer.querySelector('.multi-select-dropdown').id;
+			updateMultiSelectDisplay(containerId, optionsId, dropdownId);
+		}
+
+		// Clear all options in a multi-select dropdown
+		function clearAllOptions(optionsId) {
+			const options = document.getElementById(optionsId);
+			const checkboxes = options.querySelectorAll('input[type="checkbox"]');
+			checkboxes.forEach(checkbox => {
+				checkbox.checked = false;
+			});
+			
+			// Update display for the affected multi-select
+			const multiSelectContainer = options.closest('.multi-select');
+			const containerId = multiSelectContainer.id;
+			const dropdownId = multiSelectContainer.querySelector('.multi-select-dropdown').id;
+			updateMultiSelectDisplay(containerId, optionsId, dropdownId);
+		}
+
+		// Show no results modal
+		function showNoResultsModal() {
+			document.getElementById('noResultsModal').classList.add('show');
+		}
+
+		// Close no results modal
+		function closeNoResultsModal() {
+			document.getElementById('noResultsModal').classList.remove('show');
+		}
+
+		// Clear all filters and perform a new search
+		function clearAllFiltersAndSearch() {
+			// Reset date range to default
+			document.getElementById('relativeDateType').checked = true;
+			document.getElementById('dateRange').value = '7'; // Last 7 days
+			
+			// Clear single selects
+			document.getElementById('platformFilter').value = '';
+			document.getElementById('riskFilter').value = '';
+			document.getElementById('sourceFilter').value = '';
+			document.getElementById('crashTypeFilter').value = '';
+			
+			// Clear multi-select filters
+			clearAllOptions('memoryOptions');
+			clearAllOptions('appVersionOptions');
+			
+			// Update date range display
+			const relativeDateContainer = document.getElementById('relativeDateContainer');
+			const absoluteDateContainer = document.getElementById('absoluteDateContainer');
+			relativeDateContainer.style.display = 'block';
+			absoluteDateContainer.style.display = 'none';
+			
+			// Close the modal
+			closeNoResultsModal();
+			
+			// Execute search with cleared filters
+			executeSearch();
+		}
+
+		// Check if results are empty/meaningless
+		function hasNoMeaningfulResults(metrics) {
+			// Check if all main metrics are zero or empty
+			const hasZeroMetrics = (
+				metrics.totalCrashes === 0 &&
+				metrics.affectedUsers === 0 &&
+				metrics.fatalCrashes === 0 &&
+				metrics.nonFatalCrashes === 0
+			);
+			
+			// Check if all data arrays are empty
+			const hasNoArrayData = (
+				(!metrics.dailyTrend || metrics.dailyTrend.length === 0) &&
+				(!metrics.deviceStats || metrics.deviceStats.length === 0) &&
+				(!metrics.errorTypes || metrics.errorTypes.length === 0) &&
+				(!metrics.highRiskUsers || metrics.highRiskUsers.length === 0)
+			);
+			
+			return hasZeroMetrics || hasNoArrayData;
+		}
 
 		// Initialize both APIs and restore session
 		async function initializeAPIs() {
@@ -987,8 +1665,11 @@
 				document.getElementById('refreshBtn').disabled = false;
 				document.getElementById('authModal').classList.remove('show');
 				
-				// Load data
-				await refreshData();
+				// Initialize filter components and load data
+				initializeFilterComponents();
+				await loadAvailableAppVersions();
+				updateSearchButtonState();
+				await refreshData(); // Initial load
 			} catch (error) {
 				console.error('Authentication failed:', error);
 				alert('Failed to authenticate. Please try again.');
@@ -1003,6 +1684,7 @@
 			document.getElementById('connectionStatus').innerHTML = '<span class="status-dot"></span><span>Disconnected</span>';
 			document.getElementById('authBtn').textContent = '🔐 Connect to BigQuery';
 			document.getElementById('refreshBtn').disabled = true;
+			updateSearchButtonState();
 		}
 
 		function openSettings() {
@@ -1031,7 +1713,6 @@
 
 		// Build SQL query with filters
 		function buildQuery() {
-			const dateRange = document.getElementById('dateRange').value;
 			const platform = document.getElementById('platformFilter').value;
 			const riskLevel = document.getElementById('riskFilter').value;
 			const source = document.getElementById('sourceFilter').value;
@@ -1039,14 +1720,49 @@
 			let whereConditions = [];
 			const baseTable = `\`${CONFIG.PROJECT_ID}.${CONFIG.DATASET_ID}.crash_analytics_dashboard\``;
 			
-			// Build date filter based on selected range
+			// Build date filter based on selected range type
 			let dateFilter;
-			if (dateRange === 'hour') {
-				dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)`;
+			const dateRangeType = document.querySelector('input[name="dateRangeType"]:checked')?.value || 'relative';
+			
+			if (dateRangeType === 'absolute') {
+				// Use absolute date range
+				const dateFrom = document.getElementById('dateFrom').value;
+				const dateTo = document.getElementById('dateTo').value;
+				
+				if (dateFrom && dateTo) {
+					// Convert date format (YYYY-MM-DD) to BigQuery timestamp format with time bounds
+					const formatDateForBigQuery = (dateOnly, isEndDate = false) => {
+						if (!dateOnly) return null;
+						// Add time component - start of day for from date, end of day for to date
+						return isEndDate ? `${dateOnly} 23:59:59` : `${dateOnly} 00:00:00`;
+					};
+					
+					const formattedDateFrom = formatDateForBigQuery(dateFrom, false);
+					const formattedDateTo = formatDateForBigQuery(dateTo, true);
+					
+					dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP('${formattedDateFrom}') 
+								  AND TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) <= TIMESTAMP('${formattedDateTo}')`;
+					console.log('Using absolute date range:', formattedDateFrom, 'to', formattedDateTo);
+				} else {
+					// Fallback to last 24 hours if dates not set
+					dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)`;
+					console.log('Absolute dates not set, fallback to last 24 hours');
+				}
 			} else {
-				dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${dateRange} DAY)`;
+				// Use relative date range
+				const dateRange = document.getElementById('dateRange').value;
+				
+				if (dateRange === 'custom_hours') {
+					const customHours = document.getElementById('customHours').value || '12';
+					dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${customHours} HOUR)`;
+					console.log('Using custom hours:', customHours);
+				} else if (dateRange === 'hour') {
+					dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)`;
+				} else {
+					dateFilter = `TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${dateRange} DAY)`;
+				}
+				console.log('Date range:', dateRange, 'Date filter:', dateFilter);
 			}
-			console.log('Date range:', dateRange, 'Date filter:', dateFilter);
 
 			if (platform) {
 				whereConditions.push(`platform = '${platform}'`);
@@ -1070,24 +1786,47 @@
 				console.log('Added filter: is_fatal = FALSE');
 			}
 
-			const memoryFilter = document.getElementById('memoryFilter').value;
-			console.log('Current memory filter value:', memoryFilter);
-			if (memoryFilter === 'critical') {
-				whereConditions.push('avg_memory_free_mb < 50');
-				console.log('Added filter: avg_memory_free_mb < 50');
-			} else if (memoryFilter === 'low') {
-				whereConditions.push('avg_memory_free_mb >= 50 AND avg_memory_free_mb < 100');
-				console.log('Added filter: avg_memory_free_mb 50-100');
-			} else if (memoryFilter === 'medium') {
-				whereConditions.push('avg_memory_free_mb >= 100 AND avg_memory_free_mb < 200');
-				console.log('Added filter: avg_memory_free_mb 100-200');
-			} else if (memoryFilter === 'good') {
-				whereConditions.push('avg_memory_free_mb >= 200 AND avg_memory_free_mb < 500');
-				console.log('Added filter: avg_memory_free_mb 200-500');
-			} else if (memoryFilter === 'excellent') {
-				whereConditions.push('avg_memory_free_mb >= 500');
-				console.log('Added filter: avg_memory_free_mb >= 500');
+			// Handle multi-select memory filters
+			const memoryFilters = getMultiSelectValues('memoryOptions');
+			console.log('Current memory filters:', memoryFilters);
+			if (memoryFilters.length > 0) {
+				const memoryConditions = [];
+				memoryFilters.forEach(filter => {
+					switch(filter) {
+						case 'critical':
+							memoryConditions.push('avg_memory_free_mb < 50');
+							break;
+						case 'low':
+							memoryConditions.push('(avg_memory_free_mb >= 50 AND avg_memory_free_mb < 100)');
+							break;
+						case 'medium':
+							memoryConditions.push('(avg_memory_free_mb >= 100 AND avg_memory_free_mb < 200)');
+							break;
+						case 'good':
+							memoryConditions.push('(avg_memory_free_mb >= 200 AND avg_memory_free_mb < 500)');
+							break;
+						case 'excellent':
+							memoryConditions.push('avg_memory_free_mb >= 500');
+							break;
+					}
+				});
+				if (memoryConditions.length > 0) {
+					whereConditions.push(`(${memoryConditions.join(' OR ')})`);
+					console.log('Added memory filter:', memoryConditions.join(' OR '));
+				}
 			}
+
+			// Handle multi-select app version filters
+			const appVersionFilters = getMultiSelectValues('appVersionOptions');
+			console.log('Current app version filters:', appVersionFilters);
+			if (appVersionFilters.length > 0) {
+				const versionConditions = appVersionFilters.map(displayVersion => 
+					`app_display_version = '${displayVersion}'`
+				);
+				whereConditions.push(`(${versionConditions.join(' OR ')})`);
+				console.log('Added app version filter:', versionConditions.join(' OR '));
+			}
+
 			console.log('All where conditions:', whereConditions);
 			
 			const finalQuery = `
@@ -1591,7 +2330,19 @@
 				console.log('Data array length:', data.length);
 				console.log('Data indices and types:', data.map((item, index) => ({index, type: typeof item?.v, value: item?.v?.substring ? item.v.substring(0, 100) : item?.v})));
 
-							// Parse metrics
+							// Parse metrics with safe fallbacks
+			const safeParseJSON = (value, fallback = []) => {
+				try {
+					if (value && value !== 'null' && value !== 'undefined') {
+						return JSON.parse(value);
+					}
+					return fallback;
+				} catch (e) {
+					console.warn('Failed to parse JSON:', e, 'Value:', value);
+					return fallback;
+				}
+			};
+
 			const metrics = {
 				affectedUsers: parseInt(data[0]?.v) || 0,
 				totalCrashes: parseInt(data[1]?.v) || 0,
@@ -1609,82 +2360,77 @@
 				// App version data
 				topAppVersion: data[12]?.v || 'Unknown',
 				topVersionCrashes: parseInt(data[13]?.v) || 0,
-				fatalityStats: JSON.parse(data[14]?.v || '[]'),
-				appVersionBreakdown: JSON.parse(data[15]?.v || '[]'),
-				memoryBreakdown: JSON.parse(data[16]?.v || '[]'),
-				crashNamesBreakdown: JSON.parse(data[17]?.v || '[]')
+				fatalityStats: safeParseJSON(data[14]?.v, []),
+				appVersionBreakdown: safeParseJSON(data[15]?.v, []),
+				memoryBreakdown: safeParseJSON(data[16]?.v, []),
+				crashNamesBreakdown: safeParseJSON(data[17]?.v, [])
 			};
 
-				// Parse JSON data with validation
+				// Parse JSON data with validation using safe parsing
 				try {
 					// Daily trend data
 					console.log('Parsing daily trend data from index:', 18, 'Raw value:', data[18]?.v);
-					const dailyTrendRaw = data[18]?.v || '[]';
-					console.log('Daily trend raw string:', dailyTrendRaw);
-					const dailyTrend = JSON.parse(dailyTrendRaw);
+					const dailyTrend = safeParseJSON(data[18]?.v, []);
 					console.log('Parsed daily trend:', dailyTrend);
-					if (!Array.isArray(dailyTrend)) {
-						console.error('Daily trend is not an array:', typeof dailyTrend, dailyTrend);
-						throw new Error('Invalid daily trend data - not an array');
-					}
-					metrics.dailyTrend = dailyTrend.map(d => ({
-						time_bucket: d.time_bucket,
-						platform: d.platform,
-						daily_users: parseInt(d.users) || 0,
-						daily_crashes: parseInt(d.crashes) || 0
-					}));
+					
+					metrics.dailyTrend = Array.isArray(dailyTrend) ? dailyTrend.map(d => ({
+						time_bucket: d?.time_bucket || '',
+						platform: d?.platform || 'Unknown',
+						daily_users: parseInt(d?.users) || 0,
+						daily_crashes: parseInt(d?.crashes) || 0
+					})) : [];
 
 					// Device stats
-					const deviceStats = JSON.parse(data[19]?.v || '[]');
+					const deviceStats = safeParseJSON(data[19]?.v, []);
 					console.log('Raw device stats:', deviceStats);
-					if (!Array.isArray(deviceStats)) throw new Error('Invalid device stats data');
-					metrics.deviceStats = deviceStats.map(d => ({
-						device_model: d.device_model || 'Unknown',
-						platform: d.platform,
-						crash_count: parseInt(d.crash_count) || 0,
-						affected_users: parseInt(d.affected_users) || 0,
-						total_errors: parseInt(d.total_errors) || 0,
-						avg_risk_score: parseFloat(d.avg_risk_score) || 0
-					}));
+					
+					metrics.deviceStats = Array.isArray(deviceStats) ? deviceStats.map(d => ({
+						device_model: d?.device_model || 'Unknown',
+						platform: d?.platform || 'Unknown',
+						crash_count: parseInt(d?.crash_count) || 0,
+						affected_users: parseInt(d?.affected_users) || 0,
+						total_errors: parseInt(d?.total_errors) || 0,
+						avg_risk_score: parseFloat(d?.avg_risk_score) || 0
+					})) : [];
 
 					// Error types
-					const errorTypes = JSON.parse(data[20]?.v || '[]');
+					const errorTypes = safeParseJSON(data[20]?.v, []);
 					console.log('Raw error types:', errorTypes);
-					if (!Array.isArray(errorTypes)) throw new Error('Invalid error types data');
-					metrics.errorTypes = errorTypes.map(d => ({
-						error_type: d.error_type || 'Unknown',
-						error_count: parseInt(d.error_count) || 0,
-						error_details: d.error_details || '',
-						platform: d.platform || 'Unknown'
-					}));
+					
+					metrics.errorTypes = Array.isArray(errorTypes) ? errorTypes.map(d => ({
+						error_type: d?.error_type || 'Unknown',
+						error_count: parseInt(d?.error_count) || 0,
+						error_details: d?.error_details || '',
+						platform: d?.platform || 'Unknown'
+					})) : [];
 
 					// High risk users
-					const highRiskUsers = JSON.parse(data[21]?.v || '[]');
+					const highRiskUsers = safeParseJSON(data[21]?.v, []);
 					console.log('Raw high risk users:', highRiskUsers);
-					if (!Array.isArray(highRiskUsers)) throw new Error('Invalid high risk users data');
-					metrics.highRiskUsers = highRiskUsers.map(d => ({
-						user_id: d.user_id || 'Unknown',
-						platform: d.platform || 'Unknown',
-						device_model: d.device_model || 'Unknown',
-						errors: parseInt(d.errors) || 0,
-						risk: parseFloat(d.risk) || 0,
-						last_24h: parseInt(d.last_24h) || 0,
-						source: d.source || 'Unknown',
-						last_seen: d.last_seen || 'Unknown',
+					
+					metrics.highRiskUsers = Array.isArray(highRiskUsers) ? highRiskUsers.map(d => ({
+						user_id: d?.user_id || 'Unknown',
+						platform: d?.platform || 'Unknown',
+						device_model: d?.device_model || 'Unknown',
+						errors: parseInt(d?.errors) || 0,
+						risk: parseFloat(d?.risk) || 0,
+						last_24h: parseInt(d?.last_24h) || 0,
+						source: d?.source || 'Unknown',
+						last_seen: d?.last_seen || 'Unknown',
 						// Direct field mapping from BigQuery view
-						crashlytics_issue_title: d.crashlytics_issue_title || 'N/A',
-						crashlytics_error_type: d.crashlytics_error_type || 'N/A',
-						is_fatal: d.is_fatal === true || d.is_fatal === 'true',
-						avg_memory_used_mb: parseFloat(d.avg_memory_used_mb) || 0,
-						avg_memory_free_mb: parseFloat(d.avg_memory_free_mb) || 0,
-						sentry_latest_error: d.sentry_latest_error || 'N/A',
-						sentry_total_errors: parseInt(d.sentry_total_errors) || 0,
-						sentry_unique_issues: parseInt(d.sentry_unique_issues) || 0,
-						has_correlated_errors: d.has_correlated_errors === true || d.has_correlated_errors === 'true',
-						error_duration_hours: parseInt(d.error_duration_hours) || 0,
-						errors_per_hour: parseFloat(d.errors_per_hour) || 0,
-						top_sentry_errors_json: d.top_sentry_errors_json || '[]'
-					}));
+						crashlytics_issue_title: d?.crashlytics_issue_title || 'N/A',
+						crashlytics_error_type: d?.crashlytics_error_type || 'N/A',
+						is_fatal: d?.is_fatal === true || d?.is_fatal === 'true',
+						avg_memory_used_mb: parseFloat(d?.avg_memory_used_mb) || 0,
+						avg_memory_free_mb: parseFloat(d?.avg_memory_free_mb) || 0,
+						sentry_latest_error: d?.sentry_latest_error || 'N/A',
+						sentry_total_errors: parseInt(d?.sentry_total_errors) || 0,
+						sentry_unique_issues: parseInt(d?.sentry_unique_issues) || 0,
+						has_correlated_errors: d?.has_correlated_errors === true || d?.has_correlated_errors === 'true',
+						error_duration_hours: parseInt(d?.error_duration_hours) || 0,
+						errors_per_hour: parseFloat(d?.errors_per_hour) || 0,
+						top_sentry_errors_json: d?.top_sentry_errors_json || '[]'
+					})) : [];
 
 					console.log('Parsed and validated metrics:', metrics);
 				} catch (e) {
@@ -1698,11 +2444,27 @@
 						errorTypes: data[20]?.v,
 						highRiskUsers: data[21]?.v
 					});
-					throw new Error('Failed to parse dashboard data: ' + e.message);
+					
+					// Set fallback empty arrays for all collections to prevent chart errors
+					console.warn('Using fallback empty data due to JSON parsing error');
+					metrics.dailyTrend = [];
+					metrics.deviceStats = [];
+					metrics.errorTypes = [];
+					metrics.highRiskUsers = [];
 				}
 
-				// Update UI
-				updateMetrics(metrics);
+				// Check if we have meaningful results
+				if (hasNoMeaningfulResults(metrics)) {
+					console.log('No meaningful results found, showing modal');
+					showNoResultsModal();
+					
+					// Still update the UI with empty data to reset any previous results
+					updateMetrics(metrics);
+				} else {
+					// Update UI with results
+					updateMetrics(metrics);
+				}
+				
 				const now = new Date();
 				lastUpdated.textContent = `Last updated: ${now.toLocaleTimeString()} ${now.toLocaleDateString()}`;
 
@@ -2847,13 +3609,9 @@
 			}
 		});
 
-		// Filter change handlers
-		document.getElementById('dateRange').addEventListener('change', refreshData);
-		document.getElementById('platformFilter').addEventListener('change', refreshData);
-		document.getElementById('riskFilter').addEventListener('change', refreshData);
-		document.getElementById('sourceFilter').addEventListener('change', refreshData);
-		document.getElementById('crashTypeFilter').addEventListener('change', refreshData);
-		document.getElementById('memoryFilter').addEventListener('change', refreshData);
+		// Filter change handlers (no automatic refresh - user must click Search button)
+		// All filter changes now require clicking the Search button to update results
+		// This allows users to configure multiple filters before executing the query
 
 		// Export table data to CSV
 		async function exportTableToCsv() {
@@ -3008,6 +3766,28 @@
 				alert('Error parsing Sentry details. Raw data: ' + topSentryErrorsJson);
 			}
 		}
+
+		// Initialize search button state on page load
+		document.addEventListener('DOMContentLoaded', () => {
+			updateSearchButtonState();
+		});
+
+		// Close modal when clicking outside or pressing Escape
+		document.addEventListener('click', (e) => {
+			const noResultsModal = document.getElementById('noResultsModal');
+			if (e.target === noResultsModal) {
+				closeNoResultsModal();
+			}
+		});
+
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape') {
+				const noResultsModal = document.getElementById('noResultsModal');
+				if (noResultsModal.classList.contains('show')) {
+					closeNoResultsModal();
+				}
+			}
+		});
 
 		// No-op: initialization happens via script onload callbacks (see bottom of page)
 	</script>
