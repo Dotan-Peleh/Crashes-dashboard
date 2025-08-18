@@ -1,88 +1,225 @@
-# Live Crash Analytics Dashboard (BigQuery + Chart.js)
+# 🚀 Advanced Crash Analytics Dashboard
 
-A lightweight, client-only dashboard that authenticates with Google and queries BigQuery to visualize unified crash data from Firebase Crashlytics and Sentry.
+A comprehensive, real-time crash analytics dashboard that unifies data from Firebase Crashlytics and Sentry. Features advanced filtering, critical event analysis, and interactive visualizations powered by BigQuery and Chart.js.
 
-## Prerequisites
+## ✨ Key Features
 
-- A Google Cloud project with BigQuery enabled
-- The datasets/tables referenced by the view:
-  - `yotam-395120.peerplay.firebase_crashlytics_realtime_flattened`
-  - `yotam-395120.peerplay.sentry_errors`
-- OAuth 2.0 Client ID (Web) and an API Key
-- The provided SQL view deployed as `peerplay.crash_analytics_dashboard`
+### 🔥 Critical Events Analysis
+- **5-second timing window** analysis of events before crashes
+- **Top 10 visual chart** + comprehensive scrollable list
+- **Platform-specific breakdown** (iOS 🍎 / Android 🤖)
+- **Event timing correlation** showing exact seconds before crash
 
-## 1) Create the BigQuery View
+### 📊 Enhanced Crash Visualization
+- **Multi-colored pie charts** with 20 distinct colors for crash types
+- **Clean crash names** (removes UnityFramework/technical clutter)
+- **Interactive hover effects** with detailed statistics
+- **Platform-specific color coding** and animations
 
-Open BigQuery Console and run the SQL in:
+### 🎯 Advanced Filtering & Search
+- **Multi-select filters** for memory ranges and app versions
+- **Flexible date ranges** (custom hours, absolute date picker)
+- **User ID search** for investigating specific users
+- **Manual search button** (no auto-refresh for better performance)
 
-- `bq/unified_crash_analytics_view.sql`
+### 📱 Platform Intelligence
+- **iOS vs Android** comparative analysis
+- **Platform-specific metrics** and visualizations
+- **Cross-platform event correlation**
+- **Device-specific crash patterns**
 
-This creates/overwrites the view:
+### 🔧 Technical Enhancements
+- **Custom CORS-enabled server** for Google OAuth support
+- **Enhanced BigQuery view** with breadcrumb data parsing
+- **Robust error handling** with JSON parsing fallbacks
+- **Comprehensive user data aggregation**
 
-- `yotam-395120.peerplay.crash_analytics_dashboard`
+## 🚀 Quick Start
 
-You can adjust the project/dataset names in the SQL as needed.
+### 1. Prerequisites
 
-## 2) Configure OAuth and API Key
+- Google Cloud project with BigQuery enabled
+- OAuth 2.0 Client ID and API Key
+- Access to your crash data tables:
+  - Firebase Crashlytics data
+  - Sentry error data
 
-1. In Google Cloud Console → APIs & Services → Credentials
-2. Create Credentials → OAuth client ID → Application type: Web application
-3. Add Authorized JavaScript origins for your local dev origin, e.g.:
-   - `http://localhost:8080`
-   - `http://127.0.0.1:8080`
-4. Create an API key.
-5. Enable APIs → Enable BigQuery API for your project.
+### 2. Setup BigQuery View
 
-Update `index.html` CONFIG:
+Run the SQL in `bq/unified_crash_analytics_view.sql` to create the unified analytics view:
+
+```sql
+-- Creates: your-project.your-dataset.crash_analytics_dashboard
+```
+
+### 3. Configure Authentication
+
+Update `index.html` CONFIG section:
 
 ```js
 const CONFIG = {
-  CLIENT_ID: '57935720907-du91l7v9gj0i4nbpl3otal7f2ti88c8m.apps.googleusercontent.com',
-  API_KEY: 'AIzaSyCXhemEKZQzP3_jhkB9Stc81-zmR-Bdxus',
-  PROJECT_ID: 'yotam-395120',
-  DATASET_ID: 'peerplay'
+  CLIENT_ID: 'your-oauth-client-id.apps.googleusercontent.com',
+  API_KEY: 'your-bigquery-api-key',
+  PROJECT_ID: 'your-project-id',
+  DATASET_ID: 'your-dataset'
 };
 ```
 
-## 3) Serve Locally
+### 4. Launch Dashboard
 
-Any static server works. Example using Python:
-
-```bash
-# From the project directory
-python3 -m http.server 8080
-```
-
-Or using `npx`:
+**Recommended:** Use the custom server for full OAuth support:
 
 ```bash
-npx serve -l 8080
+python3 server.py
 ```
 
-Then open `http://localhost:8080`.
+**Alternative:** Standard Python server:
 
-## 4) Use the Dashboard
+```bash
+python3 -m http.server 8000
+```
 
-- Click “Connect to BigQuery” and complete Google sign-in.
-- Pick filters; click “Refresh Data” (or enable auto-refresh).
-- The page queries the view and renders:
-  - Total Crashes
-  - Affected Users
-  - Fatal Crashes
-  - Avg Risk Score
-  - Crash Trend (line)
-  - Platform Distribution (doughnut)
+Visit **http://localhost:8000**
 
-## Notes
+## 🎯 Dashboard Features
 
-- The dashboard reads from the view for performance and consistent schema. Adjust the view to change/extend metrics.
-- The view currently scopes to the last 7 days. You can adapt logic or add a parameterized table function for flexible ranges.
-- Because this is a client-only app, ensure your OAuth/Key restrictions are appropriate.
+### Critical Events Analysis
+- **Real-time breadcrumb analysis** showing user actions before crashes
+- **5-second critical window** filtering for relevant events
+- **Event frequency ranking** to identify common crash triggers
+- **Platform comparison** of critical event patterns
 
-## Troubleshooting
+### Interactive Crash Breakdown
+- **Top 10 crash types** in visual pie chart
+- **Complete crash inventory** in scrollable lists
+- **Risk scoring** and affected user counts
+- **Memory correlation** analysis
 
-- If auth seems stuck, check browser console for OAuth/redirect origin errors.
-- If BigQuery calls fail: verify BigQuery API is enabled, credentials are correct, and your user has `roles/bigquery.readSessionUser` and `roles/bigquery.dataViewer` or equivalent.
-- CORS errors typically indicate an origin misconfiguration in OAuth credentials.
+### Advanced Filtering
+- **Memory Range**: Multi-select from predefined ranges
+- **App Versions**: Dynamic loading and multi-selection
+- **Date Ranges**: Last N hours, days, or absolute date ranges
+- **User Search**: Find crashes for specific user IDs
+- **Platform Filter**: iOS, Android, or combined analysis
+
+### Data Export
+- **CSV export** of filtered results
+- **Complete event data** including all 5 breadcrumb events
+- **Filtered user tables** maintaining search context
+
+## 🔧 Technical Architecture
+
+### Frontend
+- **Vanilla JavaScript** with Chart.js visualizations
+- **Google Identity Services** for authentication
+- **Responsive design** with mobile support
+- **Real-time data updates** with manual refresh control
+
+### Backend
+- **BigQuery** as the primary data warehouse
+- **Unified SQL view** combining Crashlytics + Sentry
+- **Custom Python server** with CORS support
+- **OAuth 2.0** secure authentication
+
+### Data Processing
+- **Intelligent crash name cleaning** removes technical noise
+- **Platform-specific aggregation** for accurate metrics
+- **Breadcrumb parsing** supports multiple data formats
+- **Time-based correlation** analysis
+
+## 📂 Project Structure
+
+```
+├── index.html              # Main dashboard application
+├── server.py               # Custom CORS-enabled server
+├── bq/
+│   └── unified_crash_analytics_view.sql  # BigQuery view
+├── update_view.sql         # Helper for view updates
+└── README.md              # This file
+```
+
+## 🔍 Usage Guide
+
+### Authentication
+1. Click **"Connect to BigQuery"**
+2. Complete Google sign-in flow
+3. Grant BigQuery access permissions
+
+### Filtering Data
+1. **Select filters** (memory, versions, dates, user ID)
+2. Click **"Search Results"** to apply filters
+3. **View results** in charts and tables
+4. **Export data** using the CSV button
+
+### Analyzing Critical Events
+1. Check the **"Critical Events"** chart for top 10 events
+2. **Scroll through** the complete events list below
+3. **Click user rows** to see individual breadcrumb details
+4. **Look for patterns** in platform-specific events
+
+### Investigating Crashes
+1. Use the **crash names pie chart** for overview
+2. **Filter by crash type** (Fatal/Non-Fatal/All)
+3. **Examine user details** in the high-risk users table
+4. **Search specific users** by ID for deep-dive analysis
+
+## 🛠 Troubleshooting
+
+### Authentication Issues
+- **CORS errors**: Use `server.py` instead of basic Python server
+- **OAuth redirect**: Ensure authorized origins match your local URL
+- **API permissions**: Verify BigQuery API is enabled
+
+### Data Issues
+- **No results**: Check BigQuery view exists and has data
+- **Missing events**: Verify breadcrumb data format in source tables
+- **Performance**: Use filters to limit data scope for large datasets
+
+### Technical Issues
+- **Port conflicts**: Change port in `server.py` if 8000 is occupied
+- **Memory errors**: Apply date/platform filters for large datasets
+- **Chart rendering**: Check browser console for JavaScript errors
+
+## 🚀 Advanced Configuration
+
+### Custom Time Windows
+Modify the critical events window in `index.html`:
+```js
+// Change from 5 seconds to custom value
+AND TIMESTAMP_DIFF(...) BETWEEN 0 AND 10  -- 10 seconds
+```
+
+### Additional Platforms
+Extend platform support by updating the platform detection logic:
+```js
+const platformIcon = crash.platform === 'IOS' ? '🍎' : 
+                     crash.platform === 'ANDROID' ? '🤖' : 
+                     crash.platform === 'WEB' ? '🌐' : '❓';
+```
+
+## 📊 Data Schema
+
+The dashboard expects specific BigQuery table schemas. Key fields include:
+- `user_id`, `distinct_id` - User identification
+- `platform` - iOS/ANDROID/etc
+- `crash_name`, `error_type` - Crash classification  
+- `last_5_breadcrumbs_formatted` - User event timeline
+- `memory_free`, `app_display_version` - Device/app context
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test with your BigQuery setup
+5. Submit a pull request
+
+## 📄 License
+
+This project is open source. Customize for your crash analytics needs.
+
+---
+
+**Built with ❤️ for better crash analysis and user experience insights.**
 
 
