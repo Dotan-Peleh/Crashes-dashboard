@@ -552,6 +552,22 @@
 			margin-bottom: 4px;
 		}
 
+		.critical-event {
+			background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+			border-left: 3px solid #dc2626;
+			padding: 4px 6px;
+			border-radius: 4px;
+			font-weight: 600;
+		}
+
+		.stale-event {
+			background: #f3f4f6;
+			color: #6b7280;
+			padding: 4px 6px;
+			border-radius: 4px;
+			font-style: italic;
+		}
+
 		select, input[type="date"] {
 			padding: 8px 12px;
 			border: 2px solid #e2e8f0;
@@ -1003,6 +1019,11 @@
 						</div>
 					</div>
 				</div>
+
+				<div class="filter-group">
+					<label>User ID (distinct_id)</label>
+					<input type="text" id="userIdFilter" placeholder="Enter specific user ID" title="Filter by specific user/distinct_id">
+				</div>
 			</div>
 
 			<div class="search-button-container">
@@ -1091,6 +1112,27 @@
 			<div class="chart-container">
 				<h3>Top Crash Names</h3>
 				<canvas id="crashNamesChart"></canvas>
+				
+				<!-- Comprehensive Crash Names List -->
+				<div id="crashNamesList" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; display: none;">
+					<h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px;">📋 All Crash Names:</h4>
+					<div id="crashNamesListContent" style="max-height: 200px; overflow-y: auto; font-size: 13px; line-height: 1.4;">
+						<!-- Dynamic content will be added here -->
+					</div>
+				</div>
+			</div>
+
+			<div class="chart-container">
+				<h3>🔥 Critical Events (≤5s before crash)</h3>
+				<canvas id="breadcrumbsChart"></canvas>
+				
+				<!-- Comprehensive Event List -->
+				<div id="eventsList" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; display: none;">
+					<h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px;">📋 All Critical Event Names:</h4>
+					<div id="eventsListContent" style="max-height: 200px; overflow-y: auto; font-size: 13px; line-height: 1.4;">
+						<!-- Dynamic content will be added here -->
+					</div>
+				</div>
 			</div>
 		</div>
 
@@ -1118,6 +1160,7 @@
 						<th data-sort="source">Data Source <span class="sort-indicator">↕</span></th>
 						<th>Crashlytics Details</th>
 						<th>Sentry Details</th>
+						<th>🔥 Critical Events (≤5s)</th>
 						<th>Error Stats</th>
 						<th data-sort="last_seen">Last Seen <span class="sort-indicator">↕</span></th>
 					</tr>
@@ -1539,6 +1582,7 @@
 			document.getElementById('riskFilter').value = '';
 			document.getElementById('sourceFilter').value = '';
 			document.getElementById('crashTypeFilter').value = '';
+			document.getElementById('userIdFilter').value = '';
 			
 			// Clear multi-select filters
 			clearAllOptions('memoryOptions');
@@ -1831,6 +1875,13 @@
 				console.log('Added app version filter:', versionConditions.join(' OR '));
 			}
 
+			// Handle user ID filter
+			const userIdFilter = document.getElementById('userIdFilter').value.trim();
+			if (userIdFilter) {
+				whereConditions.push(`user_id = '${userIdFilter}'`);
+				console.log('Added user ID filter:', userIdFilter);
+			}
+
 			console.log('All where conditions:', whereConditions);
 			
 			const finalQuery = `
@@ -1924,7 +1975,8 @@
 						platform_error_rank,
 						error_duration_hours,
 						errors_per_hour,
-						top_sentry_errors_json
+						top_sentry_errors_json,
+						last_5_breadcrumbs_formatted
 					FROM filtered_data
 					WHERE user_risk_score >= 75
 					ORDER BY user_risk_score DESC, total_error_count DESC
@@ -2023,6 +2075,70 @@
 					ORDER BY total_events DESC
 					LIMIT 15
 				),
+				breadcrumbs_analysis AS (
+					SELECT 
+						user_id,
+						platform,
+						last_5_breadcrumbs_formatted,
+						-- Parse pipe-separated format: "timestamp - event_name | timestamp - event_name | ..."
+						-- Extract the first (most recent) event
+						CASE 
+							WHEN REGEXP_CONTAINS(last_5_breadcrumbs_formatted, r'^[^|]+') THEN
+								REGEXP_EXTRACT(
+									REGEXP_EXTRACT(last_5_breadcrumbs_formatted, r'^([^|]+)'), 
+									r'-\\s*(.+)$'
+								)
+							ELSE NULL
+						END as last_event_name,
+						-- Extract timestamp of the first event
+						CASE 
+							WHEN REGEXP_CONTAINS(last_5_breadcrumbs_formatted, r'^[^|]+') THEN
+								REGEXP_EXTRACT(
+									REGEXP_EXTRACT(last_5_breadcrumbs_formatted, r'^([^|]+)'), 
+									r'^(.+?)\\s+-'
+								)
+							ELSE NULL
+						END as last_event_timestamp
+					FROM filtered_data
+					WHERE last_5_breadcrumbs_formatted IS NOT NULL 
+					  AND last_5_breadcrumbs_formatted != ''
+					  AND last_5_breadcrumbs_formatted != 'null'
+					  AND REGEXP_CONTAINS(last_5_breadcrumbs_formatted, r'-.*\\|')  -- Has pipe-separated format
+				),
+				breadcrumbs_breakdown AS (
+					SELECT 
+						TRIM(ba.last_event_name) as last_event_type,
+						ba.platform,
+						COUNT(*) as event_count,
+						COUNT(DISTINCT ba.user_id) as affected_users,
+						-- Calculate average time before crash using timestamp differences
+						AVG(
+							CASE 
+								WHEN ba.last_event_timestamp IS NOT NULL AND ba.last_event_timestamp != '' THEN
+									TIMESTAMP_DIFF(
+										COALESCE(fd.crashlytics_last_occurrence, fd.sentry_last_seen),
+										TIMESTAMP(ba.last_event_timestamp),
+										SECOND
+									)
+								ELSE 30
+							END
+						) as avg_time_before_crash
+					FROM breadcrumbs_analysis ba
+					JOIN filtered_data fd ON ba.user_id = fd.user_id AND ba.platform = fd.platform
+					WHERE ba.last_event_name IS NOT NULL 
+					  AND TRIM(ba.last_event_name) != ''
+					  -- CRITICAL: Only include events within 5 seconds of crash
+					  AND ba.last_event_timestamp IS NOT NULL
+					  AND TIMESTAMP_DIFF(
+					      COALESCE(fd.crashlytics_last_occurrence, fd.sentry_last_seen),
+					      TIMESTAMP(ba.last_event_timestamp),
+					      SECOND
+					  ) BETWEEN 0 AND 5  -- Events 0-5 seconds before crash only
+					GROUP BY TRIM(ba.last_event_name), ba.platform
+					HAVING COUNT(*) >= 1  -- Include all events that have at least 1 occurrence
+					ORDER BY event_count DESC
+					LIMIT 20
+				),
 				metrics AS (
 					SELECT
 						COUNT(DISTINCT user_id) as affected_users,
@@ -2107,6 +2223,16 @@
 						FROM crash_names_breakdown
 					) as crash_names_breakdown_json,
 					(
+						SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(
+							last_event_type,
+							platform,
+							event_count,
+							affected_users,
+							avg_time_before_crash
+						) ORDER BY event_count DESC))
+						FROM breadcrumbs_breakdown
+					) as breadcrumbs_breakdown_json,
+					(
 						SELECT TO_JSON_STRING(ARRAY_AGG(t))
 						FROM (
 							SELECT STRUCT(time_bucket, platform, users, crashes) as t
@@ -2144,7 +2270,7 @@
 							LIMIT 20
 						)
 					) as error_types_json,
-					(
+											(
 						SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(
 							user_id,
 							platform,
@@ -2169,7 +2295,8 @@
 							has_correlated_errors,
 							error_duration_hours,
 							errors_per_hour,
-							top_sentry_errors_json
+							top_sentry_errors_json,
+							last_5_breadcrumbs_formatted
 						) ORDER BY user_risk_score DESC, total_error_count DESC))
 						FROM user_stats
 					) as high_risk_users_json
@@ -2367,14 +2494,27 @@
 				fatalityStats: safeParseJSON(data[14]?.v, []),
 				appVersionBreakdown: safeParseJSON(data[15]?.v, []),
 				memoryBreakdown: safeParseJSON(data[16]?.v, []),
-				crashNamesBreakdown: safeParseJSON(data[17]?.v, [])
+				crashNamesBreakdown: safeParseJSON(data[17]?.v, []),
+				breadcrumbsBreakdown: safeParseJSON(data[18]?.v, [])
 			};
 
 				// Parse JSON data with validation using safe parsing
 				try {
+					// Breadcrumbs breakdown data (new)
+					const breadcrumbsBreakdown = safeParseJSON(data[18]?.v, []);
+					console.log('Raw breadcrumbs breakdown:', breadcrumbsBreakdown);
+					
+					metrics.breadcrumbsBreakdown = Array.isArray(breadcrumbsBreakdown) ? breadcrumbsBreakdown.map(b => ({
+						last_event_type: b?.last_event_type || 'Unknown',
+						event_count: parseInt(b?.event_count) || 0,
+						affected_users: parseInt(b?.affected_users) || 0,
+						avg_time_before_crash: parseFloat(b?.avg_time_before_crash) || 0,
+						platform: b?.platform || 'Unknown'
+					})) : [];
+
 					// Daily trend data
-					console.log('Parsing daily trend data from index:', 18, 'Raw value:', data[18]?.v);
-					const dailyTrend = safeParseJSON(data[18]?.v, []);
+					console.log('Parsing daily trend data from index:', 19, 'Raw value:', data[19]?.v);
+					const dailyTrend = safeParseJSON(data[19]?.v, []);
 					console.log('Parsed daily trend:', dailyTrend);
 					
 					metrics.dailyTrend = Array.isArray(dailyTrend) ? dailyTrend.map(d => ({
@@ -2385,7 +2525,7 @@
 					})) : [];
 
 					// Device stats
-					const deviceStats = safeParseJSON(data[19]?.v, []);
+					const deviceStats = safeParseJSON(data[20]?.v, []);
 					console.log('Raw device stats:', deviceStats);
 					
 					metrics.deviceStats = Array.isArray(deviceStats) ? deviceStats.map(d => ({
@@ -2398,7 +2538,7 @@
 					})) : [];
 
 					// Error types
-					const errorTypes = safeParseJSON(data[20]?.v, []);
+					const errorTypes = safeParseJSON(data[21]?.v, []);
 					console.log('Raw error types:', errorTypes);
 					
 					metrics.errorTypes = Array.isArray(errorTypes) ? errorTypes.map(d => ({
@@ -2409,7 +2549,7 @@
 					})) : [];
 
 					// High risk users
-					const highRiskUsers = safeParseJSON(data[21]?.v, []);
+					const highRiskUsers = safeParseJSON(data[22]?.v, []);
 					console.log('Raw high risk users:', highRiskUsers);
 					
 					metrics.highRiskUsers = Array.isArray(highRiskUsers) ? highRiskUsers.map(d => ({
@@ -2433,24 +2573,64 @@
 						has_correlated_errors: d?.has_correlated_errors === true || d?.has_correlated_errors === 'true',
 						error_duration_hours: parseInt(d?.error_duration_hours) || 0,
 						errors_per_hour: parseFloat(d?.errors_per_hour) || 0,
-						top_sentry_errors_json: d?.top_sentry_errors_json || '[]'
+						top_sentry_errors_json: d?.top_sentry_errors_json || '[]',
+						last_5_breadcrumbs_formatted: d?.last_5_breadcrumbs_formatted || ''
 					})) : [];
 
 					console.log('Parsed and validated metrics:', metrics);
+				console.log('Breadcrumbs breakdown data check:', {
+					hasData: metrics.breadcrumbsBreakdown && metrics.breadcrumbsBreakdown.length > 0,
+					dataLength: metrics.breadcrumbsBreakdown ? metrics.breadcrumbsBreakdown.length : 0,
+					firstItem: metrics.breadcrumbsBreakdown && metrics.breadcrumbsBreakdown.length > 0 ? metrics.breadcrumbsBreakdown[0] : null,
+					rawData: data[18]?.v
+				});
+
+				// Debug: Log sample breadcrumb data from high-risk users
+				if (metrics.highRiskUsers && metrics.highRiskUsers.length > 0) {
+					console.log('Sample breadcrumb data from first 3 users:');
+					metrics.highRiskUsers.slice(0, 3).forEach((user, index) => {
+						console.log(`User ${index + 1} (${user.user_id}):`, {
+							platform: user.platform,
+							crashTime: user.last_seen,
+							breadcrumbData: user.last_5_breadcrumbs_formatted,
+							dataType: typeof user.last_5_breadcrumbs_formatted,
+							dataLength: user.last_5_breadcrumbs_formatted ? user.last_5_breadcrumbs_formatted.length : 0,
+							isEmpty: !user.last_5_breadcrumbs_formatted || user.last_5_breadcrumbs_formatted.trim() === ''
+						});
+					});
+					
+					// Create manual breadcrumb breakdown from user data if BigQuery aggregation isn't working
+					console.log('Creating manual breadcrumb breakdown from user data...');
+					const manualBreadcrumbBreakdown = createManualBreadcrumbBreakdown(metrics.highRiskUsers);
+					console.log('Manual breadcrumb breakdown:', manualBreadcrumbBreakdown);
+					
+					// ALWAYS use manual breakdown to ensure we get ALL users from current search filters
+					if (manualBreadcrumbBreakdown.length > 0) {
+						console.log('🔄 Using comprehensive manual breadcrumb breakdown from ALL filtered users');
+						metrics.breadcrumbsBreakdown = manualBreadcrumbBreakdown;
+					} else if ((!metrics.breadcrumbsBreakdown || metrics.breadcrumbsBreakdown.length === 0)) {
+						console.log('📊 No BigQuery aggregation and no manual breakdown - no critical events found');
+						metrics.breadcrumbsBreakdown = [];
+					} else {
+						console.log('📊 Using BigQuery aggregation as fallback');
+					}
+				}
 				} catch (e) {
 					console.error('Error parsing JSON data:', e);
 					console.log('Raw JSON data:', {
 						appVersionBreakdown: data[15]?.v,
 						memoryBreakdown: data[16]?.v,
 						crashNamesBreakdown: data[17]?.v,
-						dailyTrend: data[18]?.v,
-						deviceStats: data[19]?.v,
-						errorTypes: data[20]?.v,
-						highRiskUsers: data[21]?.v
+						breadcrumbsBreakdown: data[18]?.v,
+						dailyTrend: data[19]?.v,
+						deviceStats: data[20]?.v,
+						errorTypes: data[21]?.v,
+						highRiskUsers: data[22]?.v
 					});
 					
 					// Set fallback empty arrays for all collections to prevent chart errors
 					console.warn('Using fallback empty data due to JSON parsing error');
+					metrics.breadcrumbsBreakdown = [];
 					metrics.dailyTrend = [];
 					metrics.deviceStats = [];
 					metrics.errorTypes = [];
@@ -2700,6 +2880,24 @@
 			// Render sorted users
 			sortedUsers.forEach(user => {
 				const row = tbody.insertRow();
+				
+				// Process breadcrumb data to show a preview with timing info
+				const breadcrumbsPreview = user.last_5_breadcrumbs_formatted ? 
+					getBreadcrumbsPreview(user.last_5_breadcrumbs_formatted, user.last_seen) : 'No breadcrumb data';
+				
+				// Determine if this event is critical (within 2s) for styling
+				const isCriticalEvent = breadcrumbsPreview.includes('🔥') && breadcrumbsPreview.includes('[CRITICAL]');
+				const isStaleEvent = breadcrumbsPreview.includes('⏰');
+				
+				// Debug: Log breadcrumb vs crash time relationship
+				if (user.last_5_breadcrumbs_formatted && user.last_5_breadcrumbs_formatted !== '') {
+					console.log(`User ${user.user_id} breadcrumb/crash time analysis:`, {
+						crashTime: user.last_seen,
+						breadcrumbData: user.last_5_breadcrumbs_formatted.substring(0, 200),
+						preview: breadcrumbsPreview
+					});
+				}
+				
 				row.innerHTML = `
 					<td>${user.user_id}</td>
 					<td><span class="platform-badge platform-${user.platform.toLowerCase()}">${user.platform}</span></td>
@@ -2708,7 +2906,7 @@
 						<div><strong>${user.app_display_version || 'Unknown'}</strong></div>
 						<small>(Build: ${user.app_build_version || 'N/A'})</small>
 					</td>
-					<td>${parseInt(user.errors).toLocaleString()} (${user.crash_instances} instances)</td>
+					<td>${parseInt(user.errors).toLocaleString()}</td>
 					<td><span class="risk-badge ${getRiskBadgeClass(user.risk)}">${parseFloat(user.risk).toFixed(1)}</span></td>
 					<td>${parseInt(user.last_24h).toLocaleString()}</td>
 					<td>${user.source}</td>
@@ -2727,6 +2925,20 @@
 							onclick='showSentryDetails(\`${user.top_sentry_errors_json}\`)'>
 							Top Errors
 						</button>
+					</td>
+					<td>
+						<div><strong>Last Event:</strong></div>
+						<div class="${isCriticalEvent ? 'critical-event' : (isStaleEvent ? 'stale-event' : '')}" 
+							 style="font-size: 11px; margin: 2px 0;">${breadcrumbsPreview}</div>
+						<div style="font-size: 10px; color: #999; margin: 2px 0;">
+							<strong>Crash Time:</strong> ${new Date(user.last_seen).toLocaleTimeString()}
+						</div>
+						${user.last_5_breadcrumbs_formatted ? `
+							<button class="btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-top: 2px;" 
+								onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>
+								${isCriticalEvent ? '🔥 View Critical Events' : '⏰ View All 5 Events'}
+							</button>
+						` : '<small style="color: #999;">No events available</small>'}
 					</td>
 					<td>
 						<div><strong>Duration:</strong> ${user.error_duration_hours}h</div>
@@ -3490,49 +3702,93 @@
 				// Get current crash type filter
 				const crashTypeFilter = document.getElementById('crashTypeFilter').value;
 				
-				// Prepare data based on filter
-				let chartData = [];
-				let chartLabels = [];
-				let chartColors = [];
-				let chartTitle = '';
+				// Prepare and sort ALL crash names, then show top 10 in chart
+				let allCrashNames = [];
 				
 				if (crashTypeFilter === 'fatal') {
-					// Show only crashes
-					data.crashNamesBreakdown.forEach((crash, index) => {
-						if (crash.crashes > 0) {
-							chartData.push(crash.crashes);
-							// Truncate long crash names for better display
-							const truncatedName = crash.crash_name.length > 30 ? 
-								crash.crash_name.substring(0, 30) + '...' : crash.crash_name;
-							chartLabels.push(`${truncatedName} (${crash.platform})`);
-							chartColors.push(`hsl(${(index * 137.5) % 360}, 70%, 60%)`); // Generate distinct colors
-						}
-					});
-					chartTitle = `Top Crash Names (${chartData.length} different crashes)`;
+					allCrashNames = data.crashNamesBreakdown
+						.filter(crash => crash.crashes && crash.crashes > 0)
+						.sort((a, b) => b.crashes - a.crashes);
 				} else if (crashTypeFilter === 'non-fatal') {
-					// Show only errors
-					data.crashNamesBreakdown.forEach((crash, index) => {
-						if (crash.errors > 0) {
-							chartData.push(crash.errors);
-							const truncatedName = crash.crash_name.length > 30 ? 
-								crash.crash_name.substring(0, 30) + '...' : crash.crash_name;
-							chartLabels.push(`${truncatedName} (${crash.platform})`);
-							chartColors.push(`hsl(${(index * 137.5) % 360}, 70%, 60%)`);
-						}
-					});
-					chartTitle = `Top Error Names (${chartData.length} different errors)`;
+					allCrashNames = data.crashNamesBreakdown
+						.filter(crash => crash.errors && crash.errors > 0)
+						.sort((a, b) => b.errors - a.errors);
 				} else {
-					// Show total events
-					data.crashNamesBreakdown.forEach((crash, index) => {
-						if (crash.total_events > 0) {
-							chartData.push(crash.total_events);
-							const truncatedName = crash.crash_name.length > 30 ? 
-								crash.crash_name.substring(0, 30) + '...' : crash.crash_name;
-							chartLabels.push(`${truncatedName} (${crash.platform})`);
-							chartColors.push(`hsl(${(index * 137.5) % 360}, 70%, 60%)`);
-						}
-					});
-					chartTitle = `Top Event Names (${chartData.length} different issues)`;
+					// For 'all' filter, include any crash with any type of event
+					allCrashNames = data.crashNamesBreakdown
+						.filter(crash => {
+							const hasEvents = (crash.total_events && crash.total_events > 0) || 
+											  (crash.crashes && crash.crashes > 0) || 
+											  (crash.errors && crash.errors > 0);
+							return hasEvents;
+						})
+						.sort((a, b) => {
+							const aTotal = (a.total_events || 0) + (a.crashes || 0) + (a.errors || 0);
+							const bTotal = (b.total_events || 0) + (b.crashes || 0) + (b.errors || 0);
+							return bTotal - aTotal;
+						});
+				}
+				
+				console.log(`📊 Crash Names: ${allCrashNames.length} total found, filter: ${crashTypeFilter}`);
+				
+				// Update comprehensive list with ALL crash names
+				updateCrashNamesList(allCrashNames, crashTypeFilter);
+				
+				// Chart shows top 10 for clarity
+				const chartCrashNames = allCrashNames.slice(0, 10);
+				
+				console.log(`📊 Chart: Top ${Math.min(chartCrashNames.length, 10)} crashes | List: All ${allCrashNames.length} crashes`);
+				
+				// Prepare distinct colors for pie chart slices
+				const distinctColors = [
+					'#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+					'#DDA0DD', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8C471',
+					'#82E0AA', '#F1948A', '#AED6F1', '#D7BDE2', '#A3E4D7',
+					'#F9E79F', '#FADBD8', '#D5DBDB', '#CCD1D1', '#F4D03F'
+				];
+
+				// Prepare chart data with clean names
+				const chartData = [];
+				const chartLabels = [];
+				const chartColors = [];
+				
+				chartCrashNames.forEach((crash, index) => {
+					// Get the right metric based on filter
+					let count = crash.total_events || 0;
+					if (crashTypeFilter === 'fatal') count = crash.crashes || 0;
+					else if (crashTypeFilter === 'non-fatal') count = crash.errors || 0;
+					
+					// Only add to chart if count > 0
+					if (count > 0) {
+						chartData.push(count);
+						
+						// Clean crash name and add platform emoji
+						const cleanName = cleanCrashName(crash.crash_name);
+						const platformIcon = crash.platform === 'IOS' ? ' 🍎' : (crash.platform === 'ANDROID' ? ' 🤖' : '');
+						const finalName = cleanName.length > 25 ? cleanName.substring(0, 22) + '...' : cleanName;
+						
+						chartLabels.push(`${finalName}${platformIcon}`);
+						
+						// Assign a distinct color to each crash event
+						const colorIndex = (chartData.length - 1) % distinctColors.length;
+						chartColors.push(distinctColors[colorIndex]);
+					}
+				});
+				
+				console.log(`✅ Chart data prepared: ${chartData.length} items for chart`);
+				console.log('🎨 Chart colors assigned:', chartColors.slice(0, 5)); // Show first 5 colors
+				
+				// Chart title
+				const eventTypeLabel = crashTypeFilter === 'fatal' ? 'Crashes' : (crashTypeFilter === 'non-fatal' ? 'Errors' : 'Events');
+				const chartTitle = `🔥 Top ${chartData.length} ${eventTypeLabel} - ${allCrashNames.length} Total Found`;
+
+				// Only create chart if we have data
+				if (chartData.length === 0) {
+					console.log('⚠️ No chart data available, skipping chart creation');
+					if (charts.crashNames) {
+						charts.crashNames.destroy();
+					}
+					return;
 				}
 
 				if (charts.crashNames) {
@@ -3546,14 +3802,21 @@
 						datasets: [{
 							data: chartData,
 							backgroundColor: chartColors,
-							borderColor: chartColors.map(color => color.replace('60%', '80%')), // Darker borders
-							borderWidth: 2,
-							hoverOffset: 6
+							borderColor: '#FFFFFF', // White borders for clear separation
+							borderWidth: 3,
+							hoverOffset: 8,
+							hoverBorderWidth: 4,
+							hoverBorderColor: '#333333' // Dark border on hover
 						}]
 					},
 					options: {
 						responsive: true,
 						maintainAspectRatio: false,
+						animation: {
+							animateRotate: true,
+							animateScale: true,
+							duration: 1000
+						},
 						plugins: {
 							title: {
 								display: true,
@@ -3579,11 +3842,14 @@
 							tooltip: {
 								callbacks: {
 									label: function(context) {
-										const crash = data.crashNamesBreakdown.find(c => {
-											const truncatedName = c.crash_name.length > 30 ? 
-												c.crash_name.substring(0, 30) + '...' : c.crash_name;
-											return context.label.includes(truncatedName);
-										});
+										// Find the corresponding crash from the original data
+										const labelText = context.label;
+										const crash = chartCrashNames.find(c => {
+											const cleanName = cleanCrashName(c.crash_name);
+											const platformIcon = c.platform === 'IOS' ? ' 🍎' : (c.platform === 'ANDROID' ? ' 🤖' : '');
+											const finalName = cleanName.length > 25 ? cleanName.substring(0, 22) + '...' : cleanName;
+											return labelText === `${finalName}${platformIcon}`;
+										}) || chartCrashNames[context.dataIndex];
 										
 										const percentage = ((context.parsed / chartData.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
 										
@@ -3595,12 +3861,13 @@
 										}
 										
 										const details = [
-											`${context.parsed.toLocaleString()} ${eventType} (${percentage}%)`,
-											`Full Name: ${crash?.crash_name || 'Unknown'}`,
-											`Platform: ${crash?.platform || 'Unknown'}`,
-											`Affected Users: ${crash?.affected_users?.toLocaleString() || 'N/A'}`,
-											`Avg Memory: ${crash?.avg_memory_free?.toFixed(1) || 'N/A'}MB`,
-											`Risk Score: ${crash?.avg_risk_score?.toFixed(1) || 'N/A'}`
+											`🔥 ${cleanCrashName(crash.crash_name)}`,
+											`${context.parsed.toLocaleString()} ${eventType} (${percentage}% of chart)`,
+											`Platform: ${crash.platform || 'Unknown'}`,
+											`Affected Users: ${crash.affected_users?.toLocaleString() || 'N/A'}`,
+											`Avg Memory: ${crash.avg_memory_free?.toFixed(1) || 'N/A'}MB`,
+											`Risk Score: ${crash.avg_risk_score?.toFixed(1) || 'N/A'}`,
+											`📋 See full list below for all ${allCrashNames.length} crash types`
 										];
 										
 										return details;
@@ -3612,6 +3879,221 @@
 				});
 			} else {
 				console.log('Crash names chart not rendered. Data:', data.crashNamesBreakdown);
+				
+				// Hide crash names list when no data
+				updateCrashNamesList([], 'all');
+			}
+
+			// Breadcrumbs Chart - Last Events Before Crash (filtered data only)
+			const breadcrumbsCtx = document.getElementById('breadcrumbsChart')?.getContext('2d');
+			console.log('Breadcrumb chart debug:', {
+				hasCanvas: !!breadcrumbsCtx,
+				hasData: !!(data.breadcrumbsBreakdown && data.breadcrumbsBreakdown.length > 0),
+				dataLength: data.breadcrumbsBreakdown ? data.breadcrumbsBreakdown.length : 0,
+				data: data.breadcrumbsBreakdown
+			});
+			
+			if (breadcrumbsCtx && data.breadcrumbsBreakdown && data.breadcrumbsBreakdown.length > 0) {
+				console.log('Rendering breadcrumbs chart with data:', data.breadcrumbsBreakdown);
+				
+				// Prepare data: ALL events for the list, TOP 10 for the chart
+				const allSortedBreadcrumbs = [...data.breadcrumbsBreakdown]
+					.sort((a, b) => b.event_count - a.event_count);
+				
+				// Chart shows top 10 for clarity
+				const chartBreadcrumbs = allSortedBreadcrumbs.slice(0, 10);
+				
+				console.log(`📊 Chart: Top ${chartBreadcrumbs.length} events | List: All ${allSortedBreadcrumbs.length} events`);
+				console.log('Top events:', allSortedBreadcrumbs.slice(0, 5).map(b => `${b.last_event_type} (${b.event_count} crashes)`));
+				
+				// Update the comprehensive events list (shows ALL events)
+				updateEventsList(allSortedBreadcrumbs);
+				
+				const breadcrumbLabels = chartBreadcrumbs.map((b, index) => {
+					// Clean event name without timestamps or platform clutter
+					let eventName = b.last_event_type || 'Unknown Event';
+					
+					// Remove timestamp prefixes if present (e.g., "08-16 22:04:37 - ")
+					eventName = eventName.replace(/^\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s*-\s*/, '');
+					
+					// Clean up the event name and add platform indicator as small suffix
+					const cleanName = eventName.length > 30 ? eventName.substring(0, 27) + '...' : eventName;
+					const platformIndicator = b.platform === 'IOS' ? ' 🍎' : (b.platform === 'ANDROID' ? ' 🤖' : '');
+					
+					return `${cleanName}${platformIndicator}`;
+				});
+				
+				const breadcrumbChartData = chartBreadcrumbs.map(b => b.event_count);
+				const breadcrumbColors = chartBreadcrumbs.map((b, index) => {
+					// Clear platform-specific colors
+					if (b.platform === 'IOS') return '#007AFF';      // iOS Blue
+					if (b.platform === 'ANDROID') return '#3ddc84';  // Android Green  
+					// Fallback colors for unknown platforms
+					const hue = (index * 137.5) % 360;
+					return `hsl(${hue}, 65%, 55%)`;
+				});
+
+				if (charts.breadcrumbs) {
+					charts.breadcrumbs.destroy();
+				}
+
+				charts.breadcrumbs = new Chart(breadcrumbsCtx, {
+					type: 'bar',
+					data: {
+						labels: breadcrumbLabels,
+						datasets: [{
+							label: 'Crashes',
+							data: breadcrumbChartData,
+							backgroundColor: breadcrumbColors,
+							borderColor: breadcrumbColors.map(color => {
+								if (color === '#007AFF') return '#0056CC';    // Darker iOS Blue
+								if (color === '#3ddc84') return '#2dc974';    // Darker Android Green
+								return color.replace('55%', '45%');           // Darker versions for other colors
+							}),
+							borderWidth: 2,
+							borderRadius: 4
+						}]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						plugins: {
+							title: {
+								display: true,
+								text: `🔥 Top ${chartBreadcrumbs.length} Critical Events (≤5s before crash) - ${allSortedBreadcrumbs.length} Total Found`,
+								font: {
+									size: 16,
+									weight: 'bold'
+								},
+								padding: 20,
+								color: '#dc2626'
+							},
+							legend: {
+								display: false
+							},
+							tooltip: {
+								callbacks: {
+									label: function(context) {
+										const breadcrumb = chartBreadcrumbs[context.dataIndex];
+										const percentage = ((context.parsed.y / breadcrumbChartData.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
+										
+										return [
+											`🔥 CRITICAL EVENT: ${breadcrumb.last_event_type}`,
+											`Crashes: ${context.parsed.y.toLocaleString()} (${percentage}% of top ${chartBreadcrumbs.length})`,
+											`Affected Users: ${breadcrumb.affected_users?.toLocaleString() || 'N/A'}`,
+											`Platform: ${breadcrumb.platform || 'Mixed'}`,
+											`Avg Time Before Crash: ${breadcrumb.avg_time_before_crash?.toFixed(1) || 'N/A'}s`,
+											`⏱️ See full list below for all ${allSortedBreadcrumbs.length} critical events`
+										];
+									}
+								}
+							}
+						},
+						scales: {
+							x: {
+								grid: {
+									display: false
+								},
+								ticks: {
+									maxRotation: 45,
+									minRotation: 0,
+									font: {
+										size: 11
+									}
+								}
+							},
+							y: {
+								beginAtZero: true,
+								title: {
+									display: true,
+									text: 'Number of Crashes',
+									font: {
+										weight: 'bold'
+									}
+								},
+								ticks: {
+									callback: function(value) {
+										return value.toLocaleString();
+									}
+								},
+								grid: {
+									color: 'rgba(0, 0, 0, 0.1)'
+								}
+							}
+						}
+					}
+				});
+			} else {
+				console.log('🔥 Breadcrumbs chart not rendered - no critical events found');
+				console.log('Chart context available:', !!breadcrumbsCtx);
+				console.log('Data available:', !!data.breadcrumbsBreakdown);
+				console.log('Data length:', data.breadcrumbsBreakdown ? data.breadcrumbsBreakdown.length : 0);
+				
+				// Hide events list when no critical events found
+				updateEventsList([]);
+				
+				// Show a message in the chart area if no critical events found
+				if (breadcrumbsCtx) {
+					// Clear any existing chart
+					if (charts.breadcrumbs) {
+						charts.breadcrumbs.destroy();
+					}
+					
+					// Create a simple message chart
+					charts.breadcrumbs = new Chart(breadcrumbsCtx, {
+						type: 'bar',
+						data: {
+							labels: ['No Critical Events'],
+							datasets: [{
+								label: 'Info',
+								data: [1],
+								backgroundColor: ['#f3f4f6'],
+								borderColor: ['#d1d5db'],
+								borderWidth: 1
+							}]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: {
+								title: {
+									display: true,
+									text: '⏰ No events within 5 seconds of crashes found',
+									font: {
+										size: 14,
+										weight: 'normal'
+									},
+									padding: 20,
+									color: '#6b7280'
+								},
+								legend: {
+									display: false
+								},
+								tooltip: {
+									callbacks: {
+										label: function() {
+											return [
+												'No breadcrumb events occurred within 5 seconds of crashes',
+												'This suggests:',
+												'• Crashes may be sudden/unexpected',
+												'• Events are too far from crash time to be relevant',
+												'• Try expanding time window if needed'
+											];
+										}
+									}
+								}
+							},
+							scales: {
+								x: {
+									display: false
+								},
+								y: {
+									display: false
+								}
+							}
+						}
+					});
+				}
 			}
 		}
 
@@ -3727,6 +4209,12 @@
 					whereConditions.push(`(${versionConditions.join(' OR ')})`);
 				}
 
+				// Handle user ID filter for CSV export
+				const userIdFilter = document.getElementById('userIdFilter').value.trim();
+				if (userIdFilter) {
+					whereConditions.push(`user_id = '${userIdFilter}'`);
+				}
+
 				// Build export query
 				const query = `
 					WITH filtered_data AS (
@@ -3772,7 +4260,8 @@
 						platform_error_rank,
 						error_duration_hours,
 						errors_per_hour,
-						top_sentry_errors_json
+						top_sentry_errors_json,
+						last_5_breadcrumbs_formatted
 					FROM filtered_data
 					WHERE user_risk_score >= 75
 					ORDER BY user_risk_score DESC, total_error_count DESC
@@ -3850,6 +4339,504 @@
 			}
 		}
 
+		// Function to get breadcrumb preview (first event) - only shows critical events within 2s
+		function getBreadcrumbsPreview(breadcrumbsData, crashTime = null) {
+			if (!breadcrumbsData || breadcrumbsData.trim() === '' || breadcrumbsData === 'null' || breadcrumbsData === 'undefined') {
+				return 'No breadcrumb data';
+			}
+			
+			// Clean the data first
+			let cleanData = breadcrumbsData.trim();
+			
+			// Handle null cases
+			if (cleanData.startsWith('null') || cleanData === 'null') {
+				return 'No breadcrumb data';
+			}
+			
+			// Parse pipe-separated format: "timestamp - event_name | timestamp - event_name | ..."
+			if (cleanData.includes('|') && cleanData.includes(' - ')) {
+				const events = cleanData.split('|').map(event => event.trim()).filter(event => event.length > 0);
+				
+				// Find the first event within 2 seconds of crash
+				let criticalEvent = null;
+				
+				for (const event of events) {
+					const match = event.match(/^(.+?)\s+-\s+(.+)$/);
+					
+					if (match) {
+						const eventTimestamp = match[1].trim();
+						const eventName = match[2].trim();
+						
+						if (crashTime) {
+							const timeDiffSeconds = calculateTimeDifferenceInSeconds(eventTimestamp, crashTime);
+							
+							// Only show events within 5 seconds of crash
+							if (timeDiffSeconds >= 0 && timeDiffSeconds <= 5) {
+								const timeDiff = calculateTimeDifference(eventTimestamp, crashTime);
+								return `🔥 ${eventName} (${timeDiff}) [CRITICAL]`;
+							}
+						}
+					}
+				}
+				
+				// If no critical events found, indicate this
+				return '⏰ No events within 5s of crash';
+			}
+			
+			// Try JSON parsing as fallback (in case some data is JSON)
+			if (cleanData.startsWith('[') || cleanData.startsWith('{')) {
+				try {
+					const breadcrumbs = JSON.parse(cleanData);
+					if (Array.isArray(breadcrumbs) && breadcrumbs.length > 0) {
+						const lastEvent = breadcrumbs[0];
+						let preview = lastEvent.message || lastEvent.category || lastEvent.type || 'Unknown event';
+						return preview.substring(0, 50) + (preview.length > 50 ? '...' : '');
+					}
+				} catch (e) {
+					console.warn('JSON parsing failed, but that\'s expected for pipe-separated format');
+				}
+			}
+			
+			// Final fallback: show first part of raw data
+			return cleanData.substring(0, 50) + (cleanData.length > 50 ? '...' : '');
+		}
+
+		// Function to show detailed breadcrumb information - handles pipe-separated format
+		function showBreadcrumbDetails(breadcrumbsData, crashTime = null) {
+			if (!breadcrumbsData || breadcrumbsData.trim() === '' || breadcrumbsData === 'null') {
+				alert('No breadcrumb data available for this user.');
+				return;
+			}
+			
+			let cleanData = breadcrumbsData.trim();
+			let message = 'Last 5 Events Before Crash:\n\n';
+			
+			// Add crash time context if available
+			if (crashTime) {
+				message += `Crash occurred at: ${new Date(crashTime).toLocaleString()}\n`;
+				message += '='.repeat(50) + '\n';
+				message += '🔥 CRITICAL: Events within 5 seconds of crash\n';
+				message += '⏰ STALE: Events more than 5 seconds before crash\n';
+				message += '='.repeat(50) + '\n\n';
+			}
+			
+			// Handle null cases
+			if (cleanData.startsWith('null') || cleanData === 'null') {
+				alert('No breadcrumb data available for this user.');
+				return;
+			}
+			
+			// Parse pipe-separated format: "timestamp - event_name | timestamp - event_name | ..."
+			if (cleanData.includes('|') && cleanData.includes(' - ')) {
+				const events = cleanData.split('|').map(event => event.trim()).filter(event => event.length > 0);
+				
+				if (events.length > 0) {
+					let criticalCount = 0;
+					
+					events.forEach((event, index) => {
+						const match = event.match(/^(.+?)\s+-\s+(.+)$/);
+						
+						if (match) {
+							const eventTimestamp = match[1].trim();
+							const eventName = match[2].trim();
+							
+							let isCritical = false;
+							let timeDiffSeconds = -1;
+							
+							// Calculate time difference if crash time is available
+							if (crashTime) {
+								timeDiffSeconds = calculateTimeDifferenceInSeconds(eventTimestamp, crashTime);
+								isCritical = timeDiffSeconds >= 0 && timeDiffSeconds <= 5;
+								
+								const timeDiff = calculateTimeDifference(eventTimestamp, crashTime);
+								
+								// Mark critical events with fire emoji
+								if (isCritical) {
+									message += `${index + 1}. 🔥 [${eventTimestamp}] (${timeDiff}) ${eventName} [CRITICAL]\n\n`;
+									criticalCount++;
+								} else {
+									message += `${index + 1}. ⏰ [${eventTimestamp}] (${timeDiff}) ${eventName} [STALE]\n\n`;
+								}
+							} else {
+								message += `${index + 1}. [${eventTimestamp}] ${eventName}\n\n`;
+							}
+						} else {
+							// Fallback if regex doesn't match
+							message += `${index + 1}. ${event}\n\n`;
+						}
+					});
+					
+					// Add summary
+					if (crashTime) {
+						message += `\n📊 SUMMARY: ${criticalCount} critical events (within 5s), ${events.length - criticalCount} stale events`;
+					}
+				} else {
+					message += 'No events found in breadcrumb data.\n';
+				}
+				
+				alert(message);
+				return;
+			}
+			
+			// Try JSON parsing as fallback (in case some data is JSON)
+			if (cleanData.startsWith('[') || cleanData.startsWith('{')) {
+				try {
+					const breadcrumbs = JSON.parse(cleanData);
+					
+					if (Array.isArray(breadcrumbs) && breadcrumbs.length > 0) {
+						breadcrumbs.forEach((crumb, index) => {
+							message += `${index + 1}. `;
+							
+							if (crumb.timestamp) {
+								const eventTime = new Date(crumb.timestamp).toLocaleString();
+								message += `[${eventTime}] `;
+								if (crashTime) {
+									const timeDiff = calculateTimeDifference(crumb.timestamp, crashTime);
+									message += `(${timeDiff}) `;
+								}
+							}
+							
+							message += crumb.message || crumb.category || crumb.type || 'Unknown event';
+							message += '\n\n';
+						});
+					}
+					
+					alert(message);
+					return;
+				} catch (e) {
+					console.error('JSON parsing failed:', e);
+				}
+			}
+			
+			// Final fallback: show raw data formatted
+			message += 'Raw breadcrumb data:\n\n';
+			message += cleanData.replace(/\|/g, '\n').replace(/\s+-\s+/g, ': ');
+			alert(message);
+		}
+
+		// Create comprehensive breadcrumb breakdown - analyze ALL events, not just first one
+		function createManualBreadcrumbBreakdown(users) {
+			const eventMap = new Map();
+			console.log('Creating comprehensive breadcrumb breakdown for', users.length, 'users');
+			
+			users.forEach(user => {
+				if (!user.last_5_breadcrumbs_formatted || user.last_5_breadcrumbs_formatted.trim() === '' || user.last_5_breadcrumbs_formatted === 'null') {
+					return;
+				}
+				
+				let cleanData = user.last_5_breadcrumbs_formatted.trim();
+				
+				// Parse pipe-separated format: "timestamp - event_name | timestamp - event_name | ..."
+				if (cleanData.includes('|') && cleanData.includes(' - ')) {
+					const events = cleanData.split('|').map(event => event.trim()).filter(event => event.length > 0);
+					
+					// Analyze ALL events in the breadcrumb, not just the first one
+					events.forEach((event, eventIndex) => {
+						const match = event.match(/^(.+?)\s+-\s+(.+)$/);
+						
+						if (match) {
+							const eventTimestamp = match[1].trim();
+							const eventName = match[2].trim();
+							
+							// Calculate timing - use actual timestamp comparison
+							const timeDiffSeconds = user.last_seen ? calculateTimeDifferenceInSeconds(eventTimestamp, user.last_seen) : -1;
+							
+							// Only include events within 5 seconds AND that are actually before the crash
+							if (timeDiffSeconds >= 0 && timeDiffSeconds <= 5) {
+								console.log(`✅ Critical event #${eventIndex + 1} for ${user.user_id}: ${eventName} - ${timeDiffSeconds}s before crash (${user.platform})`);
+								
+								// Create a key for aggregation (event name + platform to show iOS and Android separately)
+								const key = `${eventName}|${user.platform}`;
+								
+								if (eventMap.has(key)) {
+									const existing = eventMap.get(key);
+									existing.event_count += 1;
+									existing.affected_users.add(user.user_id);
+									existing.total_time_diff += timeDiffSeconds;
+									existing.time_count += 1;
+									existing.avg_time_before_crash = existing.total_time_diff / existing.time_count;
+								} else {
+									eventMap.set(key, {
+										last_event_type: eventName,
+										platform: user.platform, // Keep specific platform (iOS/ANDROID)
+										event_count: 1,
+										affected_users: new Set([user.user_id]),
+										avg_time_before_crash: timeDiffSeconds,
+										total_time_diff: timeDiffSeconds,
+										time_count: 1,
+										is_critical_timing: true
+									});
+								}
+							} else if (timeDiffSeconds > 5) {
+								console.log(`⏰ Stale event #${eventIndex + 1} for ${user.user_id}: ${eventName} - ${timeDiffSeconds}s before crash (too old)`);
+							} else {
+								console.log(`❌ Invalid timing for ${user.user_id}: ${eventName} - ${timeDiffSeconds}s (negative = after crash)`);
+							}
+						}
+					});
+				} else {
+					// Try JSON parsing as fallback
+					try {
+						if (cleanData.startsWith('[') || cleanData.startsWith('{')) {
+							const breadcrumbs = JSON.parse(cleanData);
+							if (Array.isArray(breadcrumbs)) {
+								// Analyze all breadcrumb events, not just the first
+								breadcrumbs.forEach((breadcrumb, eventIndex) => {
+									const eventName = breadcrumb.message || breadcrumb.category || breadcrumb.type || 'Unknown Event';
+									
+									const key = `${eventName}|${user.platform}`;
+									if (eventMap.has(key)) {
+										const existing = eventMap.get(key);
+										existing.event_count += 1;
+										existing.affected_users.add(user.user_id);
+									} else {
+										eventMap.set(key, {
+											last_event_type: eventName,
+											platform: user.platform, // Keep specific platform
+											event_count: 1,
+											affected_users: new Set([user.user_id]),
+											avg_time_before_crash: 2.5, // Default estimate
+											is_critical_timing: true
+										});
+									}
+								});
+							}
+						}
+					} catch (e) {
+						console.warn(`Failed to parse breadcrumbs for user ${user.user_id}:`, e);
+					}
+				}
+			});
+			
+			// Convert map to array format - each platform gets its own entry
+			const breakdown = Array.from(eventMap.values()).map(item => ({
+				last_event_type: item.last_event_type,
+				platform: item.platform, // Already specific (IOS/ANDROID)
+				event_count: item.event_count,
+				affected_users: item.affected_users.size,
+				avg_time_before_crash: item.avg_time_before_crash || 2.5,
+				is_critical_timing: item.is_critical_timing || false
+			}));
+			
+			// Sort by event count descending to show most common events first
+			const sortedBreakdown = breakdown.sort((a, b) => b.event_count - a.event_count);
+			
+			console.log(`📊 Most common events before crashes (≤5s window):`, sortedBreakdown.slice(0, 10));
+			console.log(`Total critical event patterns found: ${sortedBreakdown.length}`);
+			
+			// Log platform breakdown for debugging
+			const platformCounts = {};
+			sortedBreakdown.forEach(item => {
+				platformCounts[item.platform] = (platformCounts[item.platform] || 0) + 1;
+			});
+			console.log(`📱 Platform distribution:`, platformCounts);
+			
+			if (sortedBreakdown.length === 0) {
+				console.log('⏰ No events found within 5 seconds of crashes. All events were filtered out as stale.');
+			} else {
+				console.log(`🔥 Top 5 most common pre-crash events:`, sortedBreakdown.slice(0, 5).map(e => `${e.last_event_type} [${e.platform}] (${e.event_count} crashes)`));
+			}
+			
+			return sortedBreakdown;
+		}
+
+		// Clean crash name by removing clutter
+		function cleanCrashName(crashName) {
+			if (!crashName) return 'Unknown Crash';
+			
+			let cleanName = crashName;
+			
+			// Remove [UnityFramework] prefix
+			cleanName = cleanName.replace(/^\[UnityFramework\]\s*/, '');
+			
+			// Remove file paths and technical prefixes (alloc.c - GC, etc.)
+			cleanName = cleanName.replace(/^[a-zA-Z0-9_]+\.[ch][\s\-]*[A-Z]*[\s\-]*/, '');
+			
+			// Remove common technical prefixes
+			cleanName = cleanName.replace(/^(GC|malloc|alloc|free|dealloc)\s*[-:]\s*/, '');
+			
+			// Clean up extra spaces
+			cleanName = cleanName.replace(/\s+/g, ' ').trim();
+			
+			// If the name is too generic after cleaning, use a more descriptive part
+			if (cleanName.length < 5 || ['...', 'Unknown', ''].includes(cleanName)) {
+				const originalParts = crashName.split(/[\s\-\(\)]+/);
+				cleanName = originalParts.find(part => part.length > 4 && !part.includes('[') && !part.includes('.c') && !part.includes('.h')) || 'System Error';
+			}
+			
+			return cleanName;
+		}
+
+		// Update comprehensive crash names list display
+		function updateCrashNamesList(crashNamesData, crashTypeFilter) {
+			const crashNamesList = document.getElementById('crashNamesList');
+			const crashNamesListContent = document.getElementById('crashNamesListContent');
+			
+			if (!crashNamesList || !crashNamesListContent) {
+				console.warn('Crash names list elements not found in DOM');
+				return;
+			}
+			
+			if (!crashNamesData || crashNamesData.length === 0) {
+				crashNamesList.style.display = 'none';
+				return;
+			}
+			
+			// Show the crash names list
+			crashNamesList.style.display = 'block';
+			
+			// Create comprehensive list of all crash names (clean, without UnityFramework clutter)
+			const crashNamesList_HTML = crashNamesData.map((crash, index) => {
+				const cleanName = cleanCrashName(crash.crash_name);
+				const platformIcon = crash.platform === 'IOS' ? '🍎' : (crash.platform === 'ANDROID' ? '🤖' : '❓');
+				const platformColor = crash.platform === 'IOS' ? '#007AFF' : (crash.platform === 'ANDROID' ? '#3ddc84' : '#666');
+				
+				// Get the right metric based on filter
+				let count = crash.total_events;
+				let countLabel = 'events';
+				if (crashTypeFilter === 'fatal') {
+					count = crash.crashes;
+					countLabel = 'crashes';
+				} else if (crashTypeFilter === 'non-fatal') {
+					count = crash.errors;
+					countLabel = 'errors';
+				}
+				
+				return `
+					<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; margin: 2px 0; background: white; border-radius: 4px; border-left: 3px solid ${platformColor};">
+						<span style="flex: 1;">
+							<strong>${cleanName}</strong>
+							<span style="margin-left: 8px; font-size: 12px;">${platformIcon}</span>
+						</span>
+						<span style="font-size: 12px; color: #666; white-space: nowrap; margin-left: 10px;">
+							<strong style="color: #dc2626;">${count}</strong> ${countLabel} • 
+							<strong style="color: #059669;">${crash.affected_users || 'N/A'}</strong> users • 
+							<span style="color: #7c3aed;">Risk: ${crash.avg_risk_score?.toFixed(1) || 'N/A'}</span>
+						</span>
+					</div>
+				`;
+			}).join('');
+			
+			crashNamesListContent.innerHTML = crashNamesList_HTML;
+			
+			// Add summary at the top
+			const totalCount = crashNamesData.reduce((sum, c) => {
+				if (crashTypeFilter === 'fatal') return sum + c.crashes;
+				if (crashTypeFilter === 'non-fatal') return sum + c.errors;
+				return sum + c.total_events;
+			}, 0);
+			
+			const eventTypeLabel = crashTypeFilter === 'fatal' ? 'crashes' : (crashTypeFilter === 'non-fatal' ? 'errors' : 'events');
+			
+			const summaryHTML = `
+				<div style="background: #e3f2fd; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; text-align: center;">
+					📊 <strong>${crashNamesData.length}</strong> crash types • 
+					🔥 <strong>${totalCount}</strong> total ${eventTypeLabel} • 
+					👥 <strong>${crashNamesData.reduce((sum, c) => sum + (c.affected_users || 0), 0)}</strong> affected users
+				</div>
+			`;
+			
+			crashNamesListContent.innerHTML = summaryHTML + crashNamesListContent.innerHTML;
+			
+			console.log(`✅ Crash names list updated with ${crashNamesData.length} crash types`);
+		}
+
+		// Update comprehensive events list display
+		function updateEventsList(breadcrumbsData) {
+			const eventsList = document.getElementById('eventsList');
+			const eventsListContent = document.getElementById('eventsListContent');
+			
+			if (!eventsList || !eventsListContent) {
+				console.warn('Events list elements not found in DOM');
+				return;
+			}
+			
+			if (!breadcrumbsData || breadcrumbsData.length === 0) {
+				eventsList.style.display = 'none';
+				return;
+			}
+			
+			// Show the events list
+			eventsList.style.display = 'block';
+			
+			// Create comprehensive list of all event names (clean, without timestamps)
+			const eventsList_HTML = breadcrumbsData.map((event, index) => {
+				// Clean event name
+				let cleanEventName = event.last_event_type || 'Unknown Event';
+				cleanEventName = cleanEventName.replace(/^\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s*-\s*/, '');
+				
+				const platformIcon = event.platform === 'IOS' ? '🍎' : (event.platform === 'ANDROID' ? '🤖' : '❓');
+				const platformColor = event.platform === 'IOS' ? '#007AFF' : (event.platform === 'ANDROID' ? '#3ddc84' : '#666');
+				
+				return `
+					<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; margin: 2px 0; background: white; border-radius: 4px; border-left: 3px solid ${platformColor};">
+						<span style="flex: 1;">
+							<strong>${cleanEventName}</strong>
+							<span style="margin-left: 8px; font-size: 12px;">${platformIcon}</span>
+						</span>
+						<span style="font-size: 12px; color: #666; white-space: nowrap; margin-left: 10px;">
+							<strong style="color: #dc2626;">${event.event_count}</strong> crashes • 
+							<strong style="color: #059669;">${event.affected_users}</strong> users • 
+							<span style="color: #7c3aed;">${event.avg_time_before_crash?.toFixed(1) || 'N/A'}s</span>
+						</span>
+					</div>
+				`;
+			}).join('');
+			
+			eventsListContent.innerHTML = eventsList_HTML;
+			
+			// Add summary at the top
+			const totalCrashes = breadcrumbsData.reduce((sum, e) => sum + e.event_count, 0);
+			const totalUsers = new Set(breadcrumbsData.flatMap(e => Array(e.affected_users).fill().map((_, i) => `${e.platform}_user_${i}`))).size;
+			
+			const summaryHTML = `
+				<div style="background: #e3f2fd; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; text-align: center;">
+					📊 <strong>${breadcrumbsData.length}</strong> event types • 
+					🔥 <strong>${totalCrashes}</strong> total crashes • 
+					👥 <strong>${breadcrumbsData.reduce((sum, e) => sum + e.affected_users, 0)}</strong> affected users •
+					⏱️ All within <strong>5 seconds</strong> of crash
+				</div>
+			`;
+			
+			eventsListContent.innerHTML = summaryHTML + eventsListContent.innerHTML;
+			
+			console.log(`✅ Events list updated with ${breadcrumbsData.length} critical events`);
+		}
+
+		// Helper function to calculate time difference between event and crash
+		function calculateTimeDifference(eventTimestamp, crashTime) {
+			try {
+				const eventDate = new Date(eventTimestamp);
+				const crashDate = new Date(crashTime);
+				const diffMs = crashDate.getTime() - eventDate.getTime();
+				const diffSeconds = Math.round(diffMs / 1000);
+				
+				if (diffSeconds < 0) {
+					return `${Math.abs(diffSeconds)}s after crash`;
+				} else if (diffSeconds < 60) {
+					return `${diffSeconds}s before crash`;
+				} else if (diffSeconds < 3600) {
+					return `${Math.round(diffSeconds / 60)}m before crash`;
+				} else {
+					return `${Math.round(diffSeconds / 3600)}h before crash`;
+				}
+			} catch (e) {
+				return 'Unknown timing';
+			}
+		}
+
+		// Helper function to get time difference in seconds (for averaging)
+		function calculateTimeDifferenceInSeconds(eventTimestamp, crashTime) {
+			try {
+				const eventDate = new Date(eventTimestamp);
+				const crashDate = new Date(crashTime);
+				const diffMs = crashDate.getTime() - eventDate.getTime();
+				return Math.round(diffMs / 1000);
+			} catch (e) {
+				return -1; // Invalid timing
+			}
+		}
+
 		// Initialize search button state on page load
 		document.addEventListener('DOMContentLoaded', () => {
 			updateSearchButtonState();
@@ -3876,13 +4863,8 @@
 	</script>
 
 	<!-- Load Google APIs and Google Identity Services -->
-	<script>
-		// Ensure global functions are defined before loading scripts
-		window.gapiLoaded = gapiLoaded;
-		window.gisLoaded = gisLoaded;
-	</script>
-	<script async defer src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
-	<script async defer src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
+	<script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+	<script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 </body>
 </html>
 

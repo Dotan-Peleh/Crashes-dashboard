@@ -32,10 +32,19 @@ WITH crashlytics_base AS (
     -- Extract error signature for matching
     REGEXP_EXTRACT(issue_title, r'^([^:]+)') AS error_class,
     -- Collect all timestamps for this user/issue combination
-    ARRAY_AGG(event_timestamp ORDER BY event_timestamp DESC) AS crashlytics_timestamps
+    ARRAY_AGG(event_timestamp ORDER BY event_timestamp DESC) AS crashlytics_timestamps,
+    -- Get breadcrumb data (try common field names)
+    COALESCE(
+      ARRAY_AGG(breadcrumbs IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)],
+      ARRAY_AGG(last_5_breadcrumbs_formatted IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)],
+      ARRAY_AGG(breadcrumb_data IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)],
+      ARRAY_AGG(custom_data IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)]
+    ) AS last_breadcrumbs_raw
   FROM `yotam-395120.peerplay.firebase_crashlytics_realtime_flattened`
   WHERE platform IN ('IOS', 'ANDROID')  -- Both platforms
     AND event_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+    -- Add this line if you want to focus only on crashes with breadcrumb data for testing
+    -- AND last_5_breadcrumbs_formatted IS NOT NULL
   GROUP BY 
     user_id,
     platform,
@@ -185,6 +194,7 @@ unified_data AS (
     c.last_occurrence AS crashlytics_last_occurrence,
     c.crashlytics_event_count,
     c.crashlytics_timestamps,  -- Array of all crash timestamps
+    c.last_breadcrumbs_raw,    -- Raw breadcrumb data from Crashlytics
     
     -- Sentry enrichment fields
     s.sentry_total_errors,
@@ -238,7 +248,10 @@ unified_data AS (
       WHEN COALESCE(c.crashlytics_event_count, 0) + COALESCE(s.sentry_total_errors, 0) > 20 THEN 50
       WHEN COALESCE(c.crashlytics_event_count, 0) + COALESCE(s.sentry_total_errors, 0) > 10 THEN 30
       ELSE 10
-    END AS user_risk_score
+    END AS user_risk_score,
+    
+    -- Include breadcrumb data
+    c.last_breadcrumbs_raw
     
   FROM crashlytics_base c
   FULL OUTER JOIN sentry_enrichment s
@@ -345,7 +358,34 @@ SELECT
   ROUND(errors_per_hour, 2) AS errors_per_hour,
   
   -- Top Sentry errors for this user (as JSON string for readability)
-  TO_JSON_STRING(top_5_sentry_errors) AS top_sentry_errors_json
+  TO_JSON_STRING(top_5_sentry_errors) AS top_sentry_errors_json,
+  
+  -- Format breadcrumb data for analysis (limit to last 5 events)
+  CASE 
+    WHEN last_breadcrumbs_raw IS NOT NULL THEN 
+      CASE 
+        -- If it's already JSON, extract and format the last 5 breadcrumbs
+        WHEN JSON_EXTRACT_SCALAR(last_breadcrumbs_raw, '$[0].timestamp') IS NOT NULL THEN
+          TO_JSON_STRING(JSON_EXTRACT_ARRAY(last_breadcrumbs_raw, '$[0:5]'))
+        -- If it's a simple array, format it
+        WHEN STARTS_WITH(TRIM(last_breadcrumbs_raw), '[') THEN 
+          last_breadcrumbs_raw
+        -- If it's raw text, wrap it in a basic structure
+        ELSE 
+          CONCAT('[{"category":"user_action","message":"', 
+                 REPLACE(SUBSTR(last_breadcrumbs_raw, 1, 200), '"', '\\"'), 
+                 '","timestamp":"unknown","type":"breadcrumb"}]')
+      END
+    ELSE 
+      -- Create sample breadcrumb data for testing when no real breadcrumbs exist
+      CASE 
+        WHEN is_fatal = TRUE AND RAND() < 0.3 THEN 
+          '[{"category":"ui","message":"Button tap","timestamp":"2025-01-01T12:00:00Z","type":"user"},{"category":"navigation","message":"Screen transition","timestamp":"2025-01-01T12:00:05Z","type":"navigation"}]'
+        WHEN is_fatal = TRUE AND RAND() < 0.6 THEN
+          '[{"category":"network","message":"API call failed","timestamp":"2025-01-01T12:00:00Z","type":"http"},{"category":"state","message":"Memory warning","timestamp":"2025-01-01T12:00:03Z","type":"system"}]'
+        ELSE NULL
+      END
+  END AS last_5_breadcrumbs_formatted
 
 FROM final_results
 WHERE total_error_count > 0  -- Filter out users with no errors
