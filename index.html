@@ -1463,10 +1463,9 @@
 			dateRange.addEventListener('change', () => { toggleCustomHours(); updateURLWithCurrentFilters(); });
 			// No automatic refresh listeners - user must click Search button
 
-			// Initialize visibility
+			// Initialize visibility (do not touch URL yet; let URL restore run first)
 			toggleDateRangeType();
 			toggleCustomHours();
-			updateURLWithCurrentFilters();
 		}
 
 		// Populate app versions dynamically
@@ -1529,8 +1528,26 @@
 			// Try to apply filters from URL after app versions load, to ensure checkboxes exist
 			setTimeout(() => {
 				applyFiltersFromURL();
-				updateURLWithCurrentFilters();
 			}, 0);
+		}
+
+		function hasURLFilters() {
+			try {
+				const params = new URLSearchParams(window.location.search);
+				if (params.size === 0) return false;
+				const keys = new Set(['dateType','dateRange','from','to','hours','platform','risk','source','crash','memory','appVersion','user']);
+				for (const k of params.keys()) {
+					if (keys.has(k)) return true;
+				}
+				return false;
+			} catch (e) { return false; }
+		}
+
+		function maybeAutoSearchFromURL() {
+			if (!isAuthenticated) return;
+			if (hasURLFilters()) {
+				refreshData();
+			}
 		}
 
 		// Safely set distinct_id input value and ensure full visibility
@@ -5023,6 +5040,8 @@
 					setUserIdFilterValue(userIdInput.value);
 				});
 			}
+			// If URL contains filters, auto-run one search so shared links open populated
+			maybeAutoSearchFromURL();
 		});
 
 		// Close modal when clicking outside or pressing Escape
