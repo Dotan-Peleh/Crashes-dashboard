@@ -1022,7 +1022,7 @@
 
 				<div class="filter-group">
 					<label>User ID (distinct_id)</label>
-					<input type="text" id="userIdFilter" placeholder="Enter specific user ID" title="Filter by specific user/distinct_id">
+					<input type="text" id="userIdFilter" placeholder="Enter specific user ID" title="Filter by specific user/distinct_id" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" name="distinct_user_id">
 				</div>
 			</div>
 
@@ -1386,6 +1386,8 @@
 				}).join('');
 				displayDiv.innerHTML = tags;
 			}
+			// Keep URL in sync when multi-selects change
+			updateURLWithCurrentFilters();
 		}
 
 		function toggleMultiSelectOption(checkboxId) {
@@ -1397,6 +1399,7 @@
 				const dropdownId = checkbox.closest('.multi-select').querySelector('.multi-select-dropdown').id;
 				updateMultiSelectDisplay(containerId, optionsId, dropdownId);
 				// No automatic refresh - user must click Search button
+				updateURLWithCurrentFilters();
 			}
 		}
 
@@ -1447,12 +1450,13 @@
 
 			relativeDateType.addEventListener('change', toggleDateRangeType);
 			absoluteDateType.addEventListener('change', toggleDateRangeType);
-			dateRange.addEventListener('change', toggleCustomHours);
+			dateRange.addEventListener('change', () => { toggleCustomHours(); updateURLWithCurrentFilters(); });
 			// No automatic refresh listeners - user must click Search button
 
 			// Initialize visibility
 			toggleDateRangeType();
 			toggleCustomHours();
+			updateURLWithCurrentFilters();
 		}
 
 		// Populate app versions dynamically
@@ -1512,6 +1516,133 @@
 			initializeDateRangeControls();
 			initializeMultiSelect('memoryMultiSelect', 'memoryOptions', 'memoryDropdown');
 			initializeMultiSelect('appVersionMultiSelect', 'appVersionOptions', 'appVersionDropdown');
+			// Try to apply filters from URL after app versions load, to ensure checkboxes exist
+			setTimeout(() => {
+				applyFiltersFromURL();
+				updateURLWithCurrentFilters();
+			}, 0);
+		}
+
+		// Serialize current filters into URL query parameters
+		function updateURLWithCurrentFilters() {
+			try {
+				const params = new URLSearchParams();
+				// Date range
+				const dateRangeType = document.querySelector('input[name="dateRangeType"]:checked')?.value || 'relative';
+				params.set('dateType', dateRangeType);
+				if (dateRangeType === 'absolute') {
+					const from = document.getElementById('dateFrom').value;
+					const to = document.getElementById('dateTo').value;
+					if (from) params.set('from', from);
+					if (to) params.set('to', to);
+				} else {
+					const range = document.getElementById('dateRange').value;
+					params.set('dateRange', range);
+					if (range === 'custom_hours') {
+						const hours = document.getElementById('customHours').value || '12';
+						params.set('hours', hours);
+					}
+				}
+
+				// Simple selects
+				const platform = document.getElementById('platformFilter')?.value || '';
+				const risk = document.getElementById('riskFilter')?.value || '';
+				const source = document.getElementById('sourceFilter')?.value || '';
+				const crashType = document.getElementById('crashTypeFilter')?.value || '';
+				if (platform) params.set('platform', platform);
+				if (risk) params.set('risk', risk);
+				if (source) params.set('source', source);
+				if (crashType) params.set('crash', crashType);
+
+				// Multi-selects
+				const memoryFilters = getMultiSelectValues('memoryOptions');
+				if (memoryFilters.length > 0) params.set('memory', memoryFilters.join(','));
+				const appVersions = getMultiSelectValues('appVersionOptions');
+				if (appVersions.length > 0) params.set('appVersion', appVersions.join(','));
+
+				// User ID filter
+				const userId = document.getElementById('userIdFilter')?.value.trim();
+				if (userId) params.set('user', userId);
+
+				const newUrl = `${window.location.pathname}?${params.toString()}`;
+				history.replaceState(null, '', newUrl);
+			} catch (e) {
+				console.warn('Failed to update URL with filters:', e);
+			}
+		}
+
+		// Apply filters from current URL (if present)
+		function applyFiltersFromURL() {
+			try {
+				const params = new URLSearchParams(window.location.search);
+				if (params.size === 0) return; // Nothing to apply
+
+				// Date handling
+				const dateType = params.get('dateType') || 'relative';
+				const relativeDateContainer = document.getElementById('relativeDateContainer');
+				const absoluteDateContainer = document.getElementById('absoluteDateContainer');
+				const hoursInputContainer = document.getElementById('hoursInputContainer');
+				if (dateType === 'absolute') {
+					document.getElementById('absoluteDateType').checked = true;
+					document.getElementById('relativeDateType').checked = false;
+					relativeDateContainer.style.display = 'none';
+					absoluteDateContainer.style.display = 'block';
+					const from = params.get('from');
+					const to = params.get('to');
+					if (from) document.getElementById('dateFrom').value = from;
+					if (to) document.getElementById('dateTo').value = to;
+				} else {
+					document.getElementById('relativeDateType').checked = true;
+					document.getElementById('absoluteDateType').checked = false;
+					relativeDateContainer.style.display = 'block';
+					absoluteDateContainer.style.display = 'none';
+					const range = params.get('dateRange');
+					if (range) document.getElementById('dateRange').value = range;
+					if (range === 'custom_hours') {
+						hoursInputContainer.style.display = 'inline-flex';
+						const hours = params.get('hours') || '12';
+						document.getElementById('customHours').value = hours;
+					} else {
+						hoursInputContainer.style.display = 'none';
+					}
+				}
+
+				// Single selects
+				const platform = params.get('platform');
+				const risk = params.get('risk');
+				const source = params.get('source');
+				const crash = params.get('crash');
+				if (platform) document.getElementById('platformFilter').value = platform;
+				if (risk) document.getElementById('riskFilter').value = risk;
+				if (source) document.getElementById('sourceFilter').value = source;
+				if (crash) document.getElementById('crashTypeFilter').value = crash;
+
+				// Multi-selects: memory (static)
+				const memoryStr = params.get('memory');
+				if (memoryStr) {
+					const values = memoryStr.split(',');
+					document.querySelectorAll('#memoryOptions input[type="checkbox"]').forEach(cb => {
+						cb.checked = values.includes(cb.value);
+					});
+					updateMultiSelectDisplay('memoryMultiSelect', 'memoryOptions', 'memoryDropdown');
+				}
+
+				// Multi-selects: app versions (populated asynchronously)
+				const appVersionStr = params.get('appVersion');
+				if (appVersionStr) {
+					const versions = appVersionStr.split(',');
+					document.querySelectorAll('#appVersionOptions input[type="checkbox"]').forEach(cb => {
+						cb.checked = versions.includes(cb.value);
+					});
+					updateMultiSelectDisplay('appVersionMultiSelect', 'appVersionOptions', 'appVersionDropdown');
+				}
+
+				// User ID
+				const user = params.get('user');
+				if (user) document.getElementById('userIdFilter').value = user;
+			} catch (e) {
+				console.warn('Failed to apply filters from URL:', e);
+			}
 		}
 
 		// Execute search when user clicks the Search button
@@ -1520,6 +1651,8 @@
 				authenticate();
 				return;
 			}
+			// Sync filters to URL so searches are shareable
+			updateURLWithCurrentFilters();
 			refreshData();
 		}
 
@@ -1648,6 +1781,9 @@
 					});
 					
 					await restoreSession();
+					// Apply filters from URL once more after auth & initial UI init
+					applyFiltersFromURL();
+					updateURLWithCurrentFilters();
 				} catch (e) {
 					console.error('Failed to initialize APIs:', e);
 					alert('Error initializing Google APIs. Please check console for details.');
@@ -4840,6 +4976,16 @@
 		// Initialize search button state on page load
 		document.addEventListener('DOMContentLoaded', () => {
 			updateSearchButtonState();
+			// Keep URL in sync when typing in userIdFilter
+			const userIdInput = document.getElementById('userIdFilter');
+			if (userIdInput) {
+				userIdInput.addEventListener('input', () => {
+					updateURLWithCurrentFilters();
+				});
+				userIdInput.addEventListener('change', () => {
+					updateURLWithCurrentFilters();
+				});
+			}
 		});
 
 		// Close modal when clicking outside or pressing Escape
