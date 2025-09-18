@@ -1298,7 +1298,7 @@
 					initializeFilterComponents();
 					await loadAvailableAppVersions();
 					updateSearchButtonState();
-					refreshData(); // Initial load
+					// Do not auto-search; wait for user to click Search
 				} catch (e) {
 					console.log('Stored token expired, need to re-authenticate');
 					localStorage.removeItem('bq_access_token');
@@ -1655,14 +1655,8 @@
 				const user = params.get('user');
 				if (user) {
 					setUserIdFilterValue(user);
-					// Ensure URL value wins over any stale local cache
-					try { localStorage.setItem('last_user_id_filter', user); } catch (e) {}
 				} else {
-					// If no user in URL, prefer last used value if present
-					try {
-						const last = localStorage.getItem('last_user_id_filter');
-						if (last) setUserIdFilterValue(last);
-					} catch (e) {}
+					setUserIdFilterValue('');
 				}
 			} catch (e) {
 				console.warn('Failed to apply filters from URL:', e);
@@ -1678,12 +1672,7 @@
 			// Sync filters to URL so searches are shareable
 			updateURLWithCurrentFilters();
 			// Persist the exact userId used in this search to avoid any later overwrite
-			try {
-				const uid = document.getElementById('userIdFilter')?.value || '';
-				if (uid) {
-					localStorage.setItem('last_user_id_filter', uid);
-				}
-			} catch (e) {}
+			// No local cache for user id; URL is the source of truth
 			refreshData();
 		}
 
@@ -1884,7 +1873,7 @@
 				initializeFilterComponents();
 				await loadAvailableAppVersions();
 				updateSearchButtonState();
-				await refreshData(); // Initial load
+				// Do not auto-search after interactive login; wait for user action
 			} catch (error) {
 				console.error('Authentication failed:', error);
 				alert('Failed to authenticate. Please try again.');
@@ -2850,7 +2839,7 @@
 			const crashTypeFilter = document.getElementById('crashTypeFilter').value;
 			// Ensure UI reflects the exact user id being used (if any)
 			try {
-				const uid = new URLSearchParams(window.location.search).get('user') || localStorage.getItem('last_user_id_filter') || '';
+				const uid = new URLSearchParams(window.location.search).get('user') || '';
 				if (uid) setUserIdFilterValue(uid);
 			} catch (e) {}
 			
