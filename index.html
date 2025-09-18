@@ -1639,7 +1639,17 @@
 
 				// User ID
 				const user = params.get('user');
-				if (user) document.getElementById('userIdFilter').value = user;
+				if (user) {
+					document.getElementById('userIdFilter').value = user;
+					// Ensure URL value wins over any stale local cache
+					try { localStorage.setItem('last_user_id_filter', user); } catch (e) {}
+				} else {
+					// If no user in URL, prefer last used value if present
+					try {
+						const last = localStorage.getItem('last_user_id_filter');
+						if (last) document.getElementById('userIdFilter').value = last;
+					} catch (e) {}
+				}
 			} catch (e) {
 				console.warn('Failed to apply filters from URL:', e);
 			}
@@ -1653,6 +1663,13 @@
 			}
 			// Sync filters to URL so searches are shareable
 			updateURLWithCurrentFilters();
+			// Persist the exact userId used in this search to avoid any later overwrite
+			try {
+				const uid = document.getElementById('userIdFilter')?.value || '';
+				if (uid) {
+					localStorage.setItem('last_user_id_filter', uid);
+				}
+			} catch (e) {}
 			refreshData();
 		}
 
