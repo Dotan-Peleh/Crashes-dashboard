@@ -1268,6 +1268,7 @@
 		let gapiInited = false;
 		let gisInited = false;
 		let availableAppVersions = [];
+		let pendingURLSearch = false; // run a search after auth if URL has filters
 
 		function loadConfigFromStorage() {
 			const savedClientId = localStorage.getItem('bq_client_id');
@@ -1308,7 +1309,11 @@
 					initializeFilterComponents();
 					await loadAvailableAppVersions();
 					updateSearchButtonState();
-					// Do not auto-search; wait for user to click Search
+					// If a URL-initiated search is pending, run it now
+					if (pendingURLSearch && hasURLFilters()) {
+						pendingURLSearch = false;
+						refreshData();
+					}
 				} catch (e) {
 					console.log('Stored token expired, need to re-authenticate');
 					localStorage.removeItem('bq_access_token');
@@ -1544,9 +1549,12 @@
 		}
 
 		function maybeAutoSearchFromURL() {
-			if (!isAuthenticated) return;
-			if (hasURLFilters()) {
+			if (!hasURLFilters()) return;
+			if (isAuthenticated) {
 				refreshData();
+			} else {
+				pendingURLSearch = true;
+				authenticate();
 			}
 		}
 
@@ -1900,7 +1908,11 @@
 				initializeFilterComponents();
 				await loadAvailableAppVersions();
 				updateSearchButtonState();
-				// Do not auto-search after interactive login; wait for user action
+				// If a URL-initiated search is pending, run it now
+				if (pendingURLSearch && hasURLFilters()) {
+					pendingURLSearch = false;
+					refreshData();
+				}
 			} catch (error) {
 				console.error('Authentication failed:', error);
 				alert('Failed to authenticate. Please try again.');
