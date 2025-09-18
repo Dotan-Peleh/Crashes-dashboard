@@ -141,6 +141,16 @@
 			transition: all 0.3s ease;
 		}
 
+		/* Make distinct_id field wide enough to show long ids */
+		#userIdFilter {
+			width: min(100%, 36ch);
+			font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+		}
+
+		@media (max-width: 560px) {
+			#userIdFilter { width: 100%; }
+		}
+
 		input[type="text"]:hover { border-color: #667eea; }
 		input[type="text"]:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
 
