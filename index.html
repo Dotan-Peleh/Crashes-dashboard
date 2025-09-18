@@ -1523,6 +1523,20 @@
 			}, 0);
 		}
 
+		// Safely set distinct_id input value and ensure full visibility
+		function setUserIdFilterValue(value) {
+			const el = document.getElementById('userIdFilter');
+			if (!el) return;
+			el.value = value || '';
+			// Keep a tooltip copy for easy viewing/copy on mobile
+			el.title = el.value;
+			try {
+				// Move caret to end so the rightmost part is visible (iOS Safari friendly)
+				const len = el.value.length;
+				el.setSelectionRange(len, len);
+			} catch (e) {}
+		}
+
 		// Serialize current filters into URL query parameters
 		function updateURLWithCurrentFilters() {
 			try {
@@ -1640,14 +1654,14 @@
 				// User ID
 				const user = params.get('user');
 				if (user) {
-					document.getElementById('userIdFilter').value = user;
+					setUserIdFilterValue(user);
 					// Ensure URL value wins over any stale local cache
 					try { localStorage.setItem('last_user_id_filter', user); } catch (e) {}
 				} else {
 					// If no user in URL, prefer last used value if present
 					try {
 						const last = localStorage.getItem('last_user_id_filter');
-						if (last) document.getElementById('userIdFilter').value = last;
+						if (last) setUserIdFilterValue(last);
 					} catch (e) {}
 				}
 			} catch (e) {
@@ -2834,6 +2848,11 @@
 		function updateMetrics(data) {
 			// Get current filter to show/hide relevant metrics
 			const crashTypeFilter = document.getElementById('crashTypeFilter').value;
+			// Ensure UI reflects the exact user id being used (if any)
+			try {
+				const uid = new URLSearchParams(window.location.search).get('user') || localStorage.getItem('last_user_id_filter') || '';
+				if (uid) setUserIdFilterValue(uid);
+			} catch (e) {}
 			
 			// Cache DOM elements
 			const elements = {
@@ -4998,9 +5017,11 @@
 			if (userIdInput) {
 				userIdInput.addEventListener('input', () => {
 					updateURLWithCurrentFilters();
+					setUserIdFilterValue(userIdInput.value);
 				});
 				userIdInput.addEventListener('change', () => {
 					updateURLWithCurrentFilters();
+					setUserIdFilterValue(userIdInput.value);
 				});
 			}
 		});
