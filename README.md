@@ -64,3 +64,30 @@ See the `examples/` directory for complete configuration examples for different 
 This template is based on proven patterns from production analytics dashboards. Whether you're building crash analytics, user behavior dashboards, sales reports, or any other data visualization tool - this template provides the proven foundation.
 
 🎯 **Start building your next dashboard in minutes, not weeks!**
+
+## 🌍 Country Filtering and Breakdown
+
+- **Country filter**: Multi-select countries to constrain all metrics and charts (uses `country_code`).
+- **Top Countries chart**: Bar chart of the top countries by total events under current filters.
+
+### URL Parameters
+The dashboard syncs filters to the URL so you can share exact views.
+- `dateType`: `relative` | `absolute`
+- `dateRange`: `hour` | `1` | `3` | `7` | `14` | `30` | `custom_hours`
+- `from`, `to`: YYYY-MM-DD (when `dateType=absolute`)
+- `hours`: number (when `dateRange=custom_hours`)
+- `platform`: `IOS` | `ANDROID`
+- `risk`: minimum user risk score (e.g. `75`)
+- `source`: `Both` | `Crashlytics Only` | `Sentry Only`
+- `crash`: `fatal` | `non-fatal`
+- `memory`: comma-separated memory categories (`critical,low,medium,good,excellent`)
+- `country`: comma-separated country codes (e.g. `US,CA`)
+- `appVersion`: comma-separated app display versions (e.g. `1.2.3,1.3.0`)
+- `user`: distinct user id filter
+
+### Compare versions within a country
+1) Pick a country in the Country filter (e.g., `US`).
+2) Select the two app versions in the App Version filter.
+3) Click Search. All charts/tables reflect the selected country and versions.
+
+Tip: The Error Events Trend and Top App Versions breakdown are constrained by country when the Country filter is set.
