@@ -1291,7 +1291,8 @@
 		let gisInited = false;
 		let availableAppVersions = [];
 		let availableCountries = [];
-			let pendingURLSearch = false; // run a search after auth if URL has filters
+		let suppressUrlSync = true; // prevent URL overwrites until filters initialized
+		let pendingURLSearch = false; // run a search after auth if URL has filters
 
 		function loadConfigFromStorage() {
 			const savedClientId = localStorage.getItem('bq_client_id');
@@ -1333,6 +1334,8 @@
 					await loadAvailableAppVersions();
 					await loadAvailableCountries();
 					applyFiltersFromURL();
+					suppressUrlSync = false; // enable URL syncing now that filters are populated
+					updateURLWithCurrentFilters();
 					updateSearchButtonState();
 					// If a URL-initiated search is pending, run it now
 					if (pendingURLSearch && hasURLFilters()) {
@@ -1587,10 +1590,7 @@
 			initializeMultiSelect('memoryMultiSelect', 'memoryOptions', 'memoryDropdown');
 			initializeMultiSelect('countryMultiSelect', 'countryOptions', 'countryDropdown');
 			initializeMultiSelect('appVersionMultiSelect', 'appVersionOptions', 'appVersionDropdown');
-			// Try to apply filters from URL after app versions load, to ensure checkboxes exist
-			setTimeout(() => {
-				applyFiltersFromURL();
-			}, 0);
+			// Defer applyFiltersFromURL until after options are loaded
 		}
 
 		function hasURLFilters() {
@@ -1632,6 +1632,7 @@
 		// Serialize current filters into URL query parameters
 		function updateURLWithCurrentFilters() {
 			try {
+				if (suppressUrlSync) return;
 				const params = new URLSearchParams();
 				// Date range
 				const dateRangeType = document.querySelector('input[name="dateRangeType"]:checked')?.value || 'relative';
