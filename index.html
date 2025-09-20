@@ -1014,6 +1014,23 @@
 				</div>
 
 				<div class="filter-group">
+					<label>Country</label>
+					<div class="multi-select" id="countryMultiSelect">
+						<div class="multi-select-dropdown" id="countryDropdown">
+							<div class="multi-select-placeholder">Select Countries</div>
+							<span>▼</span>
+						</div>
+						<div class="multi-select-options" id="countryOptions">
+							<div class="multi-select-actions">
+								<button onclick="selectAllOptions('countryOptions')" title="Select All">Select All</button>
+								<button onclick="clearAllOptions('countryOptions')" class="clear-btn" title="Clear All">Clear All</button>
+							</div>
+							<!-- Options will be populated dynamically -->
+						</div>
+					</div>
+				</div>
+
+				<div class="filter-group">
 					<label>App Version</label>
 					<div class="multi-select" id="appVersionMultiSelect">
 						<div class="multi-select-dropdown" id="appVersionDropdown">
@@ -1112,6 +1129,11 @@
 			<div class="chart-container">
 				<h3>Top App Versions</h3>
 				<canvas id="appVersionChart"></canvas>
+			</div>
+
+			<div class="chart-container">
+				<h3>Top Countries</h3>
+				<canvas id="countryChart"></canvas>
 			</div>
 
 			<div class="chart-container">
@@ -1268,7 +1290,8 @@
 		let gapiInited = false;
 		let gisInited = false;
 		let availableAppVersions = [];
-		let pendingURLSearch = false; // run a search after auth if URL has filters
+		let availableCountries = [];
+			let pendingURLSearch = false; // run a search after auth if URL has filters
 
 		function loadConfigFromStorage() {
 			const savedClientId = localStorage.getItem('bq_client_id');
@@ -1308,6 +1331,8 @@
 					// Initialize filter components and enable search
 					initializeFilterComponents();
 					await loadAvailableAppVersions();
+					await loadAvailableCountries();
+					applyFiltersFromURL();
 					updateSearchButtonState();
 					// If a URL-initiated search is pending, run it now
 					if (pendingURLSearch && hasURLFilters()) {
@@ -1473,6 +1498,37 @@
 			toggleCustomHours();
 		}
 
+		// Populate countries dynamically
+		async function loadAvailableCountries() {
+			if (!isAuthenticated) return;
+			try {
+				const query = `
+					SELECT country_code, COUNT(*) as total_events
+					FROM \`${CONFIG.PROJECT_ID}.${CONFIG.DATASET_ID}.crash_analytics_dashboard\`
+					WHERE country_code IS NOT NULL AND country_code != ''
+					  AND TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+					GROUP BY country_code
+					ORDER BY total_events DESC
+					LIMIT 50`;
+				const result = await executeBigQuery(query);
+				availableCountries = (result.rows || []).map(row => ({
+					code: row.f[0]?.v || 'Unknown',
+					count: parseInt(row.f[1]?.v) || 0
+				}));
+				const optionsContainer = document.getElementById('countryOptions');
+				const actionsHtml = optionsContainer.querySelector('.multi-select-actions')?.outerHTML || '';
+				const optionsHtml = availableCountries.map((c, index) => `
+					<div class="multi-select-option">
+						<input type="checkbox" id="country_${index}" value="${c.code}">
+						<label for="country_${index}">${c.code} (${c.count} events)</label>
+					</div>
+				`).join('');
+				optionsContainer.innerHTML = actionsHtml + optionsHtml;
+			} catch (error) {
+				console.error('Failed to load countries:', error);
+			}
+		}
+
 		// Populate app versions dynamically
 		async function loadAvailableAppVersions() {
 			if (!isAuthenticated) return;
@@ -1529,6 +1585,7 @@
 		function initializeFilterComponents() {
 			initializeDateRangeControls();
 			initializeMultiSelect('memoryMultiSelect', 'memoryOptions', 'memoryDropdown');
+			initializeMultiSelect('countryMultiSelect', 'countryOptions', 'countryDropdown');
 			initializeMultiSelect('appVersionMultiSelect', 'appVersionOptions', 'appVersionDropdown');
 			// Try to apply filters from URL after app versions load, to ensure checkboxes exist
 			setTimeout(() => {
@@ -1540,7 +1597,7 @@
 			try {
 				const params = new URLSearchParams(window.location.search);
 				if (params.size === 0) return false;
-				const keys = new Set(['dateType','dateRange','from','to','hours','platform','risk','source','crash','memory','appVersion','user']);
+				const keys = new Set(['dateType','dateRange','from','to','hours','platform','risk','source','crash','memory','country','appVersion','user']);
 				for (const k of params.keys()) {
 					if (keys.has(k)) return true;
 				}
@@ -1606,6 +1663,8 @@
 				// Multi-selects
 				const memoryFilters = getMultiSelectValues('memoryOptions');
 				if (memoryFilters.length > 0) params.set('memory', memoryFilters.join(','));
+				const countries = getMultiSelectValues('countryOptions');
+				if (countries.length > 0) params.set('country', countries.join(','));
 				const appVersions = getMultiSelectValues('appVersionOptions');
 				if (appVersions.length > 0) params.set('appVersion', appVersions.join(','));
 
@@ -1674,6 +1733,16 @@
 						cb.checked = values.includes(cb.value);
 					});
 					updateMultiSelectDisplay('memoryMultiSelect', 'memoryOptions', 'memoryDropdown');
+				}
+
+				// Multi-selects: country (populated asynchronously)
+				const countryStr = params.get('country');
+				if (countryStr) {
+					const countries = countryStr.split(',');
+					document.querySelectorAll('#countryOptions input[type="checkbox"]').forEach(cb => {
+						cb.checked = countries.includes(cb.value);
+					});
+					updateMultiSelectDisplay('countryMultiSelect', 'countryOptions', 'countryDropdown');
 				}
 
 				// Multi-selects: app versions (populated asynchronously)
@@ -1774,6 +1843,7 @@
 			
 			// Clear multi-select filters
 			clearAllOptions('memoryOptions');
+			clearAllOptions('countryOptions');
 			clearAllOptions('appVersionOptions');
 			
 			// Update date range display
@@ -2057,6 +2127,15 @@
 					whereConditions.push(`(${memoryConditions.join(' OR ')})`);
 					console.log('Added memory filter:', memoryConditions.join(' OR '));
 				}
+			}
+
+			// Handle multi-select country filters
+			const countryFilters = getMultiSelectValues('countryOptions');
+			console.log('Current country filters:', countryFilters);
+			if (countryFilters.length > 0) {
+				const countryConditions = countryFilters.map(code => `country_code = '${code}'`);
+				whereConditions.push(`(${countryConditions.join(' OR ')})`);
+				console.log('Added country filter:', countryConditions.join(' OR '));
 			}
 
 			// Handle multi-select app version filters
@@ -2404,18 +2483,36 @@
 						FROM memory_breakdown
 					) as memory_breakdown_json,
 					(
+					SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(
+					crash_name,
+					platform,
+					total_events,
+					crashes,
+					errors,
+					affected_users,
+					avg_memory_free,
+					avg_risk_score
+					) ORDER BY total_events DESC))
+					FROM crash_names_breakdown
+					) as crash_names_breakdown_json,
+					(
 						SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(
-							crash_name,
-							platform,
+							country_code,
 							total_events,
 							crashes,
 							errors,
-							affected_users,
-							avg_memory_free,
-							avg_risk_score
-						) ORDER BY total_events DESC))
-						FROM crash_names_breakdown
-					) as crash_names_breakdown_json,
+							affected_users
+							) ORDER BY total_events DESC))
+						FROM (
+							SELECT COALESCE(country_code, 'Unknown') as country_code,
+								COUNT(*) as total_events,
+								COUNTIF(is_fatal) as crashes,
+								COUNT(*) - COUNTIF(is_fatal) as errors,
+								COUNT(DISTINCT user_id) as affected_users
+							FROM filtered_data
+							GROUP BY country_code
+						)
+					) as country_breakdown_json,
 					(
 						SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(
 							last_event_type,
@@ -2689,13 +2786,14 @@
 				appVersionBreakdown: safeParseJSON(data[15]?.v, []),
 				memoryBreakdown: safeParseJSON(data[16]?.v, []),
 				crashNamesBreakdown: safeParseJSON(data[17]?.v, []),
-				breadcrumbsBreakdown: safeParseJSON(data[18]?.v, [])
+				countryBreakdown: safeParseJSON(data[18]?.v, []),
+				breadcrumbsBreakdown: safeParseJSON(data[19]?.v, [])
 			};
 
 				// Parse JSON data with validation using safe parsing
 				try {
 					// Breadcrumbs breakdown data (new)
-					const breadcrumbsBreakdown = safeParseJSON(data[18]?.v, []);
+					const breadcrumbsBreakdown = safeParseJSON(data[19]?.v, []);
 					console.log('Raw breadcrumbs breakdown:', breadcrumbsBreakdown);
 					
 					metrics.breadcrumbsBreakdown = Array.isArray(breadcrumbsBreakdown) ? breadcrumbsBreakdown.map(b => ({
@@ -2707,8 +2805,8 @@
 					})) : [];
 
 					// Daily trend data
-					console.log('Parsing daily trend data from index:', 19, 'Raw value:', data[19]?.v);
-					const dailyTrend = safeParseJSON(data[19]?.v, []);
+					console.log('Parsing daily trend data from index:', 20, 'Raw value:', data[20]?.v);
+					const dailyTrend = safeParseJSON(data[20]?.v, []);
 					console.log('Parsed daily trend:', dailyTrend);
 					
 					metrics.dailyTrend = Array.isArray(dailyTrend) ? dailyTrend.map(d => ({
@@ -2719,7 +2817,7 @@
 					})) : [];
 
 					// Device stats
-					const deviceStats = safeParseJSON(data[20]?.v, []);
+					const deviceStats = safeParseJSON(data[21]?.v, []);
 					console.log('Raw device stats:', deviceStats);
 					
 					metrics.deviceStats = Array.isArray(deviceStats) ? deviceStats.map(d => ({
@@ -2732,7 +2830,7 @@
 					})) : [];
 
 					// Error types
-					const errorTypes = safeParseJSON(data[21]?.v, []);
+					const errorTypes = safeParseJSON(data[22]?.v, []);
 					console.log('Raw error types:', errorTypes);
 					
 					metrics.errorTypes = Array.isArray(errorTypes) ? errorTypes.map(d => ({
@@ -2743,7 +2841,7 @@
 					})) : [];
 
 					// High risk users
-					const highRiskUsers = safeParseJSON(data[22]?.v, []);
+					const highRiskUsers = safeParseJSON(data[23]?.v, []);
 					console.log('Raw high risk users:', highRiskUsers);
 					
 					metrics.highRiskUsers = Array.isArray(highRiskUsers) ? highRiskUsers.map(d => ({
@@ -2776,7 +2874,7 @@
 					hasData: metrics.breadcrumbsBreakdown && metrics.breadcrumbsBreakdown.length > 0,
 					dataLength: metrics.breadcrumbsBreakdown ? metrics.breadcrumbsBreakdown.length : 0,
 					firstItem: metrics.breadcrumbsBreakdown && metrics.breadcrumbsBreakdown.length > 0 ? metrics.breadcrumbsBreakdown[0] : null,
-					rawData: data[18]?.v
+					rawData: data[19]?.v
 				});
 
 				// Debug: Log sample breadcrumb data from high-risk users
@@ -2815,11 +2913,12 @@
 						appVersionBreakdown: data[15]?.v,
 						memoryBreakdown: data[16]?.v,
 						crashNamesBreakdown: data[17]?.v,
-						breadcrumbsBreakdown: data[18]?.v,
-						dailyTrend: data[19]?.v,
-						deviceStats: data[20]?.v,
-						errorTypes: data[21]?.v,
-						highRiskUsers: data[22]?.v
+						countryBreakdown: data[18]?.v,
+						breadcrumbsBreakdown: data[19]?.v,
+						dailyTrend: data[20]?.v,
+						deviceStats: data[21]?.v,
+						errorTypes: data[22]?.v,
+						highRiskUsers: data[23]?.v
 					});
 					
 					// Set fallback empty arrays for all collections to prevent chart errors
@@ -3164,6 +3263,34 @@
 
 		function updateCharts(data) {
 			console.log('Updating charts with data:', data);
+
+			// Country Breakdown
+			const countryCtx = document.getElementById('countryChart')?.getContext('2d');
+			if (countryCtx) {
+				if (charts.country) charts.country.destroy();
+				const topCountries = (data.countryBreakdown || []).slice(0, 10);
+				const labels = topCountries.map(c => c.country_code || 'Unknown');
+				const totals = topCountries.map(c => (c.total_events || 0));
+				charts.country = new Chart(countryCtx, {
+					type: 'bar',
+					data: {
+						labels,
+						datasets: [{
+							label: 'Events',
+							data: totals,
+							backgroundColor: '#4e79a7'
+						}]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						plugins: { legend: { display: false } },
+						scales: {
+							y: { beginAtZero: true }
+						}
+					}
+				});
+			}
 
 			// Platform Distribution
 			const platformCtx = document.getElementById('platformChart')?.getContext('2d');
