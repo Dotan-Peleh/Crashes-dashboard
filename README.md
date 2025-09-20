@@ -6,6 +6,8 @@ A powerful, configurable dashboard template for BigQuery analytics. Built with t
 
 ### 🎯 **What's Included**
 - **Advanced filtering system** with multi-select, date ranges, and search
+- **Memory range filter and breakdown** with clear thresholds and a "Memory vs Events" chart
+- **Country filter and Top Countries breakdown** with shareable deep links
 - **Top 10 + comprehensive list pattern** for all chart types
 - **Platform-aware visualizations** with emojis and color coding
 - **Manual search button** for performance (no auto-refresh)
@@ -65,6 +67,19 @@ This template is based on proven patterns from production analytics dashboards. 
 
 🎯 **Start building your next dashboard in minutes, not weeks!**
 
+## 🧠 Memory Filtering and Breakdown
+
+- **Memory filter**: Select one or more ranges to constrain the dataset by average free memory at crash/error time.
+- **Thresholds** used by the dashboard:
+  - Critical: `< 50MB`
+  - Low: `50–100MB`
+  - Medium: `100–200MB`
+  - Good: `200–500MB`
+  - Excellent: `≥ 500MB`
+- **Memory vs Events chart**: Stacked bars show events, crashes vs errors, and affected users per selected memory bucket(s).
+
+Example URL parameter: `memory=critical,low`
+
 ## 🌍 Country Filtering and Breakdown
 
 - **Country filter**: Multi-select countries to constrain all metrics and charts (uses `country_code`).
@@ -91,3 +106,7 @@ The dashboard syncs filters to the URL so you can share exact views.
 3) Click Search. All charts/tables reflect the selected country and versions.
 
 Tip: The Error Events Trend and Top App Versions breakdown are constrained by country when the Country filter is set.
+
+### Sharing links and auth
+- Shared URLs include all filters (e.g., `country`, `memory`, `appVersion`).
+- On first load, you may be prompted to connect to BigQuery. After connecting, the page restores all URL filters before the initial query runs.
