@@ -2173,7 +2173,6 @@
 						top_sentry_errors_json,
 						last_5_breadcrumbs_formatted
 					FROM filtered_data
-					WHERE user_risk_score >= 75
 					ORDER BY user_risk_score DESC, total_error_count DESC
 				),
 				fatality_stats AS (
@@ -4463,7 +4462,6 @@
 						top_sentry_errors_json,
 						last_5_breadcrumbs_formatted
 					FROM filtered_data
-					WHERE user_risk_score >= 75
 					ORDER BY user_risk_score DESC, total_error_count DESC
 				`;
 
