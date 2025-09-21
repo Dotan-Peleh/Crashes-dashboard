@@ -1977,7 +1977,13 @@
 				
 				// Initialize filter components and load data
 				initializeFilterComponents();
+				// Defer URL sync until filter options are populated
+				suppressUrlSync = true;
 				await loadAvailableAppVersions();
+				await loadAvailableCountries();
+				applyFiltersFromURL();
+				suppressUrlSync = false;
+				updateURLWithCurrentFilters();
 				updateSearchButtonState();
 				// If a URL-initiated search is pending, run it now
 				if (pendingURLSearch && hasURLFilters()) {
