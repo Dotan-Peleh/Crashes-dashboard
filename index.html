@@ -2662,10 +2662,14 @@
 					} catch (error) {
 						// Check if error is due to auth
 						if (error.status === 401 || error.status === 403) {
-							console.log('Auth error, attempting to refresh token...');
-							await signIn();
-							retryCount++;
-							continue;
+							// Do NOT attempt to silently re-auth inside a non‑user gesture,
+							// as many browsers will block the OAuth popup and cause
+							// "Failed to open popup window" errors for some users.
+							console.log('Auth error detected during BigQuery call; will surface to caller so user can re‑authenticate via explicit action.');
+							
+							// Break out of retry loop and let the outer catch handle
+							// clearing tokens and showing the auth modal.
+							throw error;
 						}
 						
 						// For other errors, retry after a delay
