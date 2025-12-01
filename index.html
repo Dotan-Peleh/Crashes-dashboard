@@ -1051,6 +1051,11 @@
 					<label>User ID (distinct_id)</label>
 					<input type="text" id="userIdFilter" placeholder="Enter specific user ID" title="Filter by specific user/distinct_id" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" name="distinct_user_id">
 				</div>
+
+				<div class="filter-group">
+					<label>Exception Name</label>
+					<input type="text" id="exceptionFilter" placeholder="e.g. NullPointerException" title="Filter by exception / error name" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" name="exception_name">
+				</div>
 			</div>
 
 			<div class="search-button-container">
@@ -1597,7 +1602,7 @@
 			try {
 				const params = new URLSearchParams(window.location.search);
 				if (params.size === 0) return false;
-				const keys = new Set(['dateType','dateRange','from','to','hours','platform','risk','source','crash','memory','country','appVersion','user']);
+				const keys = new Set(['dateType','dateRange','from','to','hours','platform','risk','source','crash','memory','country','appVersion','user','exception']);
 				for (const k of params.keys()) {
 					if (keys.has(k)) return true;
 				}
@@ -1672,6 +1677,10 @@
 				// User ID filter
 				const userId = document.getElementById('userIdFilter')?.value.trim();
 				if (userId) params.set('user', userId);
+
+				// Exception name filter
+				const exceptionName = document.getElementById('exceptionFilter')?.value.trim();
+				if (exceptionName) params.set('exception', exceptionName);
 
 				const newUrl = `${window.location.pathname}?${params.toString()}`;
 				history.replaceState(null, '', newUrl);
@@ -1762,6 +1771,14 @@
 					setUserIdFilterValue(user);
 				} else {
 					setUserIdFilterValue('');
+				}
+
+				// Exception name
+				const exception = params.get('exception');
+				const exceptionInput = document.getElementById('exceptionFilter');
+				if (exceptionInput) {
+					exceptionInput.value = exception || '';
+					exceptionInput.title = exception || '';
 				}
 			} catch (e) {
 				console.warn('Failed to apply filters from URL:', e);
@@ -2161,6 +2178,20 @@
 			if (userIdFilter) {
 				whereConditions.push(`user_id = '${userIdFilter}'`);
 				console.log('Added user ID filter:', userIdFilter);
+			}
+
+			// Handle exception name filter (supports partial match, case-insensitive)
+			const exceptionFilter = document.getElementById('exceptionFilter').value.trim();
+			if (exceptionFilter) {
+				// Match against common exception / error fields from Crashlytics and Sentry
+				const escaped = exceptionFilter.replace(/'/g, "\\'");
+				const exceptionCondition = `
+					LOWER(COALESCE(crashlytics_error_type, '')) LIKE LOWER('%${escaped}%')
+					OR LOWER(COALESCE(crashlytics_issue_title, '')) LIKE LOWER('%${escaped}%')
+					OR LOWER(COALESCE(sentry_latest_error, '')) LIKE LOWER('%${escaped}%')
+				`;
+				whereConditions.push(`(${exceptionCondition})`);
+				console.log('Added exception filter:', exceptionFilter);
 			}
 
 			console.log('All where conditions:', whereConditions);
@@ -4552,6 +4583,18 @@
 					whereConditions.push(`user_id = '${userIdFilter}'`);
 				}
 
+				// Handle exception name filter for CSV export
+				const exceptionFilter = document.getElementById('exceptionFilter').value.trim();
+				if (exceptionFilter) {
+					const escaped = exceptionFilter.replace(/'/g, "\\'");
+					const exceptionCondition = `
+						LOWER(COALESCE(crashlytics_error_type, '')) LIKE LOWER('%${escaped}%')
+						OR LOWER(COALESCE(crashlytics_issue_title, '')) LIKE LOWER('%${escaped}%')
+						OR LOWER(COALESCE(sentry_latest_error, '')) LIKE LOWER('%${escaped}%')
+					`;
+					whereConditions.push(`(${exceptionCondition})`);
+				}
+
 				// Build export query
 				const query = `
 					WITH filtered_data AS (
@@ -5186,6 +5229,16 @@
 				userIdInput.addEventListener('change', () => {
 					updateURLWithCurrentFilters();
 					setUserIdFilterValue(userIdInput.value);
+				});
+			}
+			// Keep URL in sync for exceptionFilter as well
+			const exceptionInput = document.getElementById('exceptionFilter');
+			if (exceptionInput) {
+				exceptionInput.addEventListener('input', () => {
+					updateURLWithCurrentFilters();
+				});
+				exceptionInput.addEventListener('change', () => {
+					updateURLWithCurrentFilters();
 				});
 			}
 			// If URL contains filters, auto-run one search so shared links open populated
