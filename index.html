@@ -1496,92 +1496,110 @@
 			</div>
 		</div>
 
-	<!-- CSV Upload and Analysis Section -->
-	<div class="csv-analysis-section">
-		<div class="csv-upload-container">
-			<div class="csv-upload-header">
-				<h3>📊 Analyze User List (CSV)</h3>
-				<p>Upload a CSV file with distinct_id's to find common errors/crashes</p>
-			</div>
-			<div class="csv-upload-controls">
-				<div class="file-upload-wrapper">
-					<input type="file" id="csvFileInput" accept=".csv" style="display: none;">
-					<button class="btn-primary" onclick="document.getElementById('csvFileInput').click()">
-						📁 Choose CSV File
-					</button>
-					<span id="csvFileName" style="margin-left: 10px; color: #718096;"></span>
+		<div class="dashboard">
+			<!-- CSV Upload and Analysis Section -->
+			<div class="csv-analysis-section">
+				<div class="csv-upload-container">
+				<div class="csv-upload-header">
+					<h3>📊 Analyze User List (CSV)</h3>
+					<p>Upload a CSV file with distinct_id's to find common errors/crashes</p>
+					<p style="font-size: 12px; color: #718096; margin-top: 5px;">
+						💡 Tip: Configure FIREBASE_APP_ID and SENTRY_ORG/PROJECT in the code to enable direct links to Crashlytics/Sentry
+					</p>
 				</div>
-				<button class="btn-primary" id="analyzeCsvBtn" onclick="analyzeCsvUsers()" disabled>
-					🔍 Analyze Users
-				</button>
-				<button class="btn-secondary" id="clearCsvBtn" onclick="clearCsvAnalysis()" style="display: none;">
-					🗑️ Clear Results
-				</button>
-			</div>
-			<div id="csvAnalysisStatus" style="margin-top: 15px; padding: 10px; border-radius: 8px; display: none;"></div>
-		</div>
+					<div class="csv-upload-controls">
+						<div class="file-upload-wrapper">
+							<input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+							<button class="btn-primary" onclick="document.getElementById('csvFileInput').click()">
+								📁 Choose CSV File
+							</button>
+							<span id="csvFileName" style="margin-left: 10px; color: #718096;"></span>
+						</div>
+						<div class="filter-group" style="min-width: 200px;">
+							<label>Timeframe</label>
+							<select id="csvTimeframe">
+								<option value="7">Last 7 days (default)</option>
+								<option value="1">Last 24 hours</option>
+								<option value="3">Last 3 days</option>
+								<option value="14">Last 14 days</option>
+								<option value="30">Last 30 days</option>
+								<option value="90">Last 90 days</option>
+							</select>
+						</div>
+						<button class="btn-primary" id="analyzeCsvBtn" onclick="analyzeCsvUsers()" disabled>
+							🔍 Analyze Users
+						</button>
+						<button class="btn-secondary" id="clearCsvBtn" onclick="clearCsvAnalysis()" style="display: none;">
+							🗑️ Clear Results
+						</button>
+					</div>
+					<div id="csvAnalysisStatus" style="margin-top: 15px; padding: 10px; border-radius: 8px; display: none;"></div>
+				</div>
 
-		<!-- Results Table -->
-		<div id="csvResultsContainer" style="display: none; margin-top: 25px;">
+				<!-- Results Table -->
+				<div id="csvResultsContainer" style="display: none; margin-top: 25px;">
 			<div class="csv-results-header">
 				<h3>Analysis Results</h3>
-				<button class="btn-secondary" onclick="exportCsvResults()">
-					📊 Export Results to CSV
-				</button>
-			</div>
-			
-			<!-- Summary Statistics -->
-			<div class="csv-summary-stats">
-				<div class="summary-card">
-					<div class="summary-label">Total Users Analyzed</div>
-					<div class="summary-value" id="totalUsersCount">0</div>
-				</div>
-				<div class="summary-card">
-					<div class="summary-label">Users with Crashes</div>
-					<div class="summary-value" id="usersWithCrashes">0</div>
-				</div>
-				<div class="summary-card">
-					<div class="summary-label">Users with Errors</div>
-					<div class="summary-value" id="usersWithErrors">0</div>
-				</div>
-				<div class="summary-card">
-					<div class="summary-label">Users with No Issues</div>
-					<div class="summary-value" id="usersWithNoIssues">0</div>
+				<div style="display: flex; gap: 10px; align-items: center;">
+					<span style="font-size: 12px; color: #718096;">💡 Links to Crashlytics/Sentry appear in the table below</span>
+					<button class="btn-secondary" onclick="exportCsvResults()">
+						📊 Export Results to CSV
+					</button>
 				</div>
 			</div>
+					
+					<!-- Summary Statistics -->
+					<div class="csv-summary-stats">
+						<div class="summary-card">
+							<div class="summary-label">Total Users Analyzed</div>
+							<div class="summary-value" id="totalUsersCount">0</div>
+						</div>
+						<div class="summary-card">
+							<div class="summary-label">Users with Crashes</div>
+							<div class="summary-value" id="usersWithCrashes">0</div>
+						</div>
+						<div class="summary-card">
+							<div class="summary-label">Users with Errors</div>
+							<div class="summary-value" id="usersWithErrors">0</div>
+						</div>
+						<div class="summary-card">
+							<div class="summary-label">Users with No Issues</div>
+							<div class="summary-value" id="usersWithNoIssues">0</div>
+						</div>
+					</div>
 
-			<!-- Common Errors/Crashes -->
-			<div class="common-issues-section">
-				<h4>🔍 Common Issues (by % of affected users)</h4>
-				<div id="commonIssuesList" style="margin-top: 10px;"></div>
-			</div>
+					<!-- Common Errors/Crashes -->
+					<div class="common-issues-section">
+						<h4>🔍 Common Issues (by % of affected users)</h4>
+						<div id="commonIssuesList" style="margin-top: 10px;"></div>
+					</div>
 
-			<!-- Detailed Results Table -->
-			<div class="table-container" style="margin-top: 25px;">
-				<table id="csvResultsTable">
-					<thead>
-						<tr>
-							<th data-sort="distinct_id">Distinct ID <span class="sort-indicator">↕</span></th>
-							<th data-sort="has_crash">Has Crash? <span class="sort-indicator">↕</span></th>
-							<th data-sort="has_error">Has Error? <span class="sort-indicator">↕</span></th>
-							<th data-sort="crash_title">Crash Title</th>
-							<th data-sort="error_title">Error Title</th>
-							<th data-sort="crash_count">Crash Count <span class="sort-indicator">↕</span></th>
-							<th data-sort="error_count">Error Count <span class="sort-indicator">↕</span></th>
+					<!-- Detailed Results Table -->
+					<div class="table-container" style="margin-top: 25px;">
+						<table id="csvResultsTable">
+							<thead>
+								<tr>
+									<th data-sort="distinct_id">Distinct ID <span class="sort-indicator">↕</span></th>
+									<th data-sort="has_crash">Has Crash? <span class="sort-indicator">↕</span></th>
+									<th data-sort="has_error">Has Error? <span class="sort-indicator">↕</span></th>
+									<th data-sort="crash_title">Crash Title</th>
+									<th data-sort="error_title">Error Title</th>
+									<th data-sort="crash_count">Crash Count <span class="sort-indicator">↕</span></th>
+									<th data-sort="error_count">Error Count <span class="sort-indicator">↕</span></th>
 							<th data-sort="platform">Platform <span class="sort-indicator">↕</span></th>
 							<th data-sort="risk_score">Risk Score <span class="sort-indicator">↕</span></th>
 							<th data-sort="last_seen">Last Seen <span class="sort-indicator">↕</span></th>
-						</tr>
-					</thead>
-					<tbody id="csvResultsTableBody">
-					</tbody>
-				</table>
+							<th style="background: #f7fafc; font-weight: 600;">🔗 Links</th>
+								</tr>
+							</thead>
+							<tbody id="csvResultsTableBody">
+							</tbody>
+						</table>
+					</div>
+				</div>
 			</div>
-		</div>
-	</div>
 
-	<div class="dashboard">
-		<div class="metrics">
+			<div class="metrics">
 			<div class="metric-card loading">
 				<div class="metric-label">Total Events</div>
 				<div class="metric-value" id="totalCrashes">-</div>
@@ -1800,7 +1818,13 @@
 			DISCOVERY_DOCS: ['https://www.googleapis.com/discovery/v1/apis/bigquery/v2/rest'],
 			SCOPES: 'https://www.googleapis.com/auth/bigquery.readonly',
 			PROJECT_ID: 'yotam-395120',
-			DATASET_ID: 'peerplay'
+			DATASET_ID: 'peerplay',
+			// URL Configuration - Update these with your actual values
+			FIREBASE_PROJECT_ID: 'mergecruise', // Your Firebase project ID
+			FIREBASE_APP_ID_IOS: '', // iOS app ID (e.g., '1:123456789:ios:abcdef')
+			FIREBASE_APP_ID_ANDROID: '', // Android app ID (e.g., '1:123456789:android:abcdef')
+			SENTRY_ORG: 'peerplay-ltd', // Your Sentry organization slug
+			SENTRY_PROJECT: '' // Your Sentry project slug (optional)
 		};
 
 		let isAuthenticated = false;
@@ -3129,6 +3153,7 @@
 							END as last_24h,
 							data_source as source,
 							FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', COALESCE(crashlytics_last_occurrence, sentry_last_seen)) as last_seen,
+							crashlytics_issue_id,
 							crashlytics_issue_title,
 							crashlytics_error_type,
 							is_fatal,
@@ -3412,6 +3437,7 @@
 						source: d?.source || 'Unknown',
 						last_seen: d?.last_seen || 'Unknown',
 						// Direct field mapping from BigQuery view
+						crashlytics_issue_id: d?.crashlytics_issue_id || '',
 						crashlytics_issue_title: d?.crashlytics_issue_title || 'N/A',
 						crashlytics_error_type: d?.crashlytics_error_type || 'N/A',
 						is_fatal: d?.is_fatal === true || d?.is_fatal === 'true',
@@ -3529,7 +3555,7 @@
 			}
 		}
 
-		function updateMetrics(data) {
+		async function updateMetrics(data) {
 			// Get current filter to show/hide relevant metrics
 			const crashTypeFilter = document.getElementById('crashTypeFilter').value;
 			// Ensure UI reflects the exact user id being used (if any)
@@ -3643,6 +3669,11 @@
 			elements.riskChange.className = `metric-change ${changes.risk.isPositive ? 'negative' : 'positive'}`;
 
 			// Update charts
+			// Fetch Sentry groupIDs for users before updating table
+			if (data.highRiskUsers && data.highRiskUsers.length > 0) {
+				await fetchSentryGroupIds(data.highRiskUsers);
+			}
+
 			updateCharts(data);
 
 			// Update user table
@@ -3772,6 +3803,24 @@
 						<div><small><strong>Memory:</strong> ${(user.avg_memory_used_mb || 0).toFixed(1)}MB used / ${(user.avg_memory_free_mb || 0).toFixed(1)}MB free</small></div>
 						${user.is_fatal ? '<span class="risk-badge risk-critical">Crash</span>' : '<span class="risk-badge risk-medium">Error</span>'}
 						${user.has_correlated_errors ? '<span class="risk-badge risk-high">Correlated</span>' : ''}
+						${user.crashlytics_issue_id ? (() => {
+							const crashlyticsUrl = getCrashlyticsUrl(user.crashlytics_issue_id, user.platform);
+							if (crashlyticsUrl) {
+								const hasAppId = (user.platform === 'IOS' ? CONFIG.FIREBASE_APP_ID_IOS : CONFIG.FIREBASE_APP_ID_ANDROID);
+								return `
+									<div style="margin-top: 5px;">
+										<a href="${crashlyticsUrl}" 
+										   target="_blank" 
+										   rel="noopener noreferrer" 
+										   style="color: #667eea; text-decoration: none; font-size: 11px; font-weight: 600;">
+											🔥 ${hasAppId ? 'View in Crashlytics' : 'Open Crashlytics (Issue: ' + user.crashlytics_issue_id + ')'}
+										</a>
+										${!hasAppId ? '<div style="font-size: 9px; color: #718096; margin-top: 2px;">Configure FIREBASE_APP_ID for direct link</div>' : ''}
+									</div>
+								`;
+							}
+							return '';
+						})() : ''}
 					</td>
 					<td>
 						<div><strong>Latest Error:</strong> ${user.sentry_latest_error}</div>
@@ -3781,6 +3830,32 @@
 							onclick='showSentryDetails(\`${user.top_sentry_errors_json}\`)'>
 							Top Errors
 						</button>
+						${user.sentry_group_id ? (() => {
+							const sentryUrl = getSentryUrl(user.sentry_group_id, user.sentry_org, user.sentry_project);
+							if (sentryUrl) {
+								return `
+									<div style="margin-top: 5px;">
+										<a href="${sentryUrl}" 
+										   target="_blank" 
+										   rel="noopener noreferrer" 
+										   style="color: #667eea; text-decoration: none; font-size: 11px; font-weight: 600;">
+											🐛 View in Sentry
+										</a>
+									</div>
+								`;
+							} else {
+								return `
+									<div style="margin-top: 5px;">
+										<span style="color: #718096; font-size: 11px;">
+											🐛 Group ID: ${user.sentry_group_id}
+										</span>
+										<div style="font-size: 9px; color: #718096; margin-top: 2px;">
+											Configure SENTRY_ORG in code to enable link
+										</div>
+									</div>
+								`;
+							}
+						})() : ''}
 					</td>
 					<td>
 						<div><strong>Last Event:</strong></div>
@@ -5737,6 +5812,86 @@
 		let csvDistinctIds = [];
 		let csvAnalysisResults = [];
 
+		// URL Generation Functions
+		function getCrashlyticsUrl(issueId, platform) {
+			if (!issueId || !CONFIG.FIREBASE_PROJECT_ID) return null;
+			
+			// Determine app ID based on platform
+			const appId = platform === 'IOS' 
+				? CONFIG.FIREBASE_APP_ID_IOS 
+				: CONFIG.FIREBASE_APP_ID_ANDROID;
+			
+			// Firebase console URL format: /u/0/project/{project}/crashlytics/app/{appId}/issues/{issueId}
+			if (appId) {
+				// Use app ID if available - direct link to issue
+				return `https://console.firebase.google.com/u/0/project/${CONFIG.FIREBASE_PROJECT_ID}/crashlytics/app/${appId}/issues/${issueId}`;
+			}
+			
+			// Fallback: Without app ID, we can't link directly to the issue
+			// Link to Crashlytics dashboard where user can search for the issue ID
+			return `https://console.firebase.google.com/u/0/project/${CONFIG.FIREBASE_PROJECT_ID}/crashlytics`;
+		}
+
+		function getSentryUrl(groupId, org, project) {
+			if (!groupId) return null;
+			
+			// Use org from user data if available, otherwise fall back to config
+			const sentryOrg = org || CONFIG.SENTRY_ORG;
+			const sentryProject = project || CONFIG.SENTRY_PROJECT;
+			
+			// If we have org, construct the URL
+			if (sentryOrg) {
+				// Sentry URL format: https://{org}.sentry.io/issues/{groupId}/
+				// Project is optional in the URL
+				return `https://${sentryOrg}.sentry.io/issues/${groupId}/`;
+			}
+			
+			// Without org, we can't construct a valid URL
+			return null;
+		}
+
+		// Fetch Sentry groupIDs for users in the main table
+		async function fetchSentryGroupIds(users) {
+			if (!users || users.length === 0) return;
+			
+			try {
+				const userIds = users.map(u => u.user_id).filter(id => id && id !== 'Unknown' && !id.includes('no distinct_id'));
+				if (userIds.length === 0) return;
+
+				const distinctIdsList = userIds.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
+				// Get groupID from Sentry errors table
+				const sentryQuery = `
+					SELECT 
+						user_id as distinct_id,
+						ARRAY_AGG(groupID ORDER BY timestamp DESC LIMIT 1)[SAFE_OFFSET(0)] as sentry_group_id
+					FROM \`${CONFIG.PROJECT_ID}.${CONFIG.DATASET_ID}.sentry_errors\`
+					WHERE user_id IN (${distinctIdsList})
+					  AND DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+					  AND groupID IS NOT NULL
+					GROUP BY user_id
+				`;
+
+				const result = await executeBigQuery(sentryQuery);
+				if (result.rows && result.rows.length > 0) {
+					result.rows.forEach(row => {
+						const distinctId = row.f[0]?.v || '';
+						const groupId = row.f[1]?.v || '';
+						if (distinctId && groupId) {
+							const user = users.find(u => u.user_id === distinctId);
+							if (user) {
+								user.sentry_group_id = groupId;
+							}
+						}
+					});
+					console.log(`✅ Fetched Sentry groupIDs for ${result.rows.length} users`);
+				} else {
+					console.log('⚠️ No Sentry groupIDs found for users');
+				}
+			} catch (error) {
+				console.warn('Failed to fetch Sentry groupIDs:', error);
+			}
+		}
+
 		// Handle CSV file input - will be initialized in DOMContentLoaded
 		function initializeCsvUpload() {
 			const csvFileInput = document.getElementById('csvFileInput');
@@ -5814,6 +5969,9 @@
 			document.getElementById('analyzeCsvBtn').disabled = true;
 
 			try {
+				// Get selected timeframe
+				const timeframeDays = parseInt(document.getElementById('csvTimeframe')?.value || '7');
+				
 				// Build query to get crash/error data for the distinct_id's
 				const distinctIdsList = csvDistinctIds.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
 				
@@ -5823,6 +5981,7 @@
 						platform,
 						is_fatal,
 						crashlytics_issue_title,
+						crashlytics_issue_id,
 						crashlytics_error_type,
 						sentry_latest_error,
 						crashlytics_event_count,
@@ -5833,15 +5992,43 @@
 						data_source
 					FROM \`${CONFIG.PROJECT_ID}.${CONFIG.DATASET_ID}.crash_analytics_dashboard\`
 					WHERE user_id IN (${distinctIdsList})
+					  AND TIMESTAMP(COALESCE(crashlytics_last_occurrence, sentry_last_seen)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${timeframeDays} DAY)
 					ORDER BY user_id, total_error_count DESC
 				`;
+				
+				// Also get Sentry groupID from the source table
+				const sentryQuery = `
+					SELECT 
+						user_id as distinct_id,
+						ARRAY_AGG(groupID ORDER BY timestamp DESC LIMIT 1)[SAFE_OFFSET(0)] as sentry_group_id
+					FROM \`${CONFIG.PROJECT_ID}.${CONFIG.DATASET_ID}.sentry_errors\`
+					WHERE user_id IN (${distinctIdsList})
+					  AND DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL ${timeframeDays} DAY)
+					  AND groupID IS NOT NULL
+					GROUP BY user_id
+				`;
 
-				const result = await executeBigQuery(query);
+				const [result, sentryResult] = await Promise.all([
+					executeBigQuery(query),
+					executeBigQuery(sentryQuery).catch(() => ({ rows: [] })) // Fallback if query fails
+				]);
 				
 				if (!result.rows || result.rows.length === 0) {
 					showCsvStatus('No crash/error data found for the provided distinct_id\'s', 'error');
 					document.getElementById('analyzeCsvBtn').disabled = false;
 					return;
+				}
+
+				// Build Sentry groupID map
+				const sentryGroupMap = new Map();
+				if (sentryResult.rows) {
+					sentryResult.rows.forEach(row => {
+						const distinctId = row.f[0]?.v || '';
+						const groupId = row.f[1]?.v || '';
+						if (distinctId && groupId) {
+							sentryGroupMap.set(distinctId, groupId);
+						}
+					});
 				}
 
 				// Process results
@@ -5853,14 +6040,15 @@
 					const platform = row.f[1]?.v || 'Unknown';
 					const isFatal = row.f[2]?.v === 'true' || row.f[2]?.v === true;
 					const crashTitle = row.f[3]?.v || '';
-					const crashErrorType = row.f[4]?.v || '';
-					const sentryError = row.f[5]?.v || '';
-					const crashCount = parseInt(row.f[6]?.v) || 0;
-					const errorCount = parseInt(row.f[7]?.v) || 0;
-					const totalErrors = parseInt(row.f[8]?.v) || 0;
-					const riskScore = parseInt(row.f[9]?.v) || 0;
-					const lastSeen = row.f[10]?.v || '';
-					const dataSource = row.f[11]?.v || '';
+					const crashlyticsIssueId = row.f[4]?.v || '';
+					const crashErrorType = row.f[5]?.v || '';
+					const sentryError = row.f[6]?.v || '';
+					const crashCount = parseInt(row.f[7]?.v) || 0;
+					const errorCount = parseInt(row.f[8]?.v) || 0;
+					const totalErrors = parseInt(row.f[9]?.v) || 0;
+					const riskScore = parseInt(row.f[10]?.v) || 0;
+					const lastSeen = row.f[11]?.v || '';
+					const dataSource = row.f[12]?.v || '';
 
 					if (!userDataMap.has(distinctId)) {
 						userDataMap.set(distinctId, {
@@ -5875,11 +6063,21 @@
 							total_error_count: 0,
 							risk_score: riskScore,
 							last_seen: lastSeen,
-							data_source: dataSource
+							data_source: dataSource,
+							crashlytics_issue_id: '',
+							sentry_group_id: ''
 						});
 					}
 
 					const userData = userDataMap.get(distinctId);
+					
+					// Store issue IDs
+					if (crashlyticsIssueId && !userData.crashlytics_issue_id) {
+						userData.crashlytics_issue_id = crashlyticsIssueId;
+					}
+					if (sentryGroupMap.has(distinctId) && !userData.sentry_group_id) {
+						userData.sentry_group_id = sentryGroupMap.get(distinctId);
+					}
 					
 					if (isFatal && crashTitle) {
 						userData.has_crash = true;
@@ -5903,20 +6101,22 @@
 				// Convert map to array and add users with no data
 				csvDistinctIds.forEach(distinctId => {
 					if (!userDataMap.has(distinctId)) {
-						userDataMap.set(distinctId, {
-							distinct_id: distinctId,
-							platform: 'Unknown',
-							has_crash: false,
-							has_error: false,
-							crash_titles: [],
-							error_titles: [],
-							crash_count: 0,
-							error_count: 0,
-							total_error_count: 0,
-							risk_score: 0,
-							last_seen: '',
-							data_source: 'No Data'
-						});
+					userDataMap.set(distinctId, {
+						distinct_id: distinctId,
+						platform: 'Unknown',
+						has_crash: false,
+						has_error: false,
+						crash_titles: [],
+						error_titles: [],
+						crash_count: 0,
+						error_count: 0,
+						total_error_count: 0,
+						risk_score: 0,
+						last_seen: '',
+						data_source: 'No Data',
+						crashlytics_issue_id: '',
+						sentry_group_id: sentryGroupMap.get(distinctId) || ''
+					});
 					}
 				});
 
@@ -5924,7 +6124,7 @@
 
 				// Display results
 				displayCsvResults();
-				showCsvStatus(`Analysis complete: ${csvAnalysisResults.length} users analyzed`, 'success');
+				showCsvStatus(`Analysis complete: ${csvAnalysisResults.length} users analyzed (last ${timeframeDays} days)`, 'success');
 				document.getElementById('clearCsvBtn').style.display = 'inline-block';
 			} catch (error) {
 				console.error('Error analyzing CSV users:', error);
@@ -6012,20 +6212,38 @@
 			// Display detailed table
 			const tableBody = document.getElementById('csvResultsTableBody');
 			if (tableBody) {
-				tableBody.innerHTML = csvAnalysisResults.map(user => `
-					<tr>
-						<td style="font-family: monospace; font-size: 12px;">${user.distinct_id}</td>
-						<td>${user.has_crash ? '✅ Yes' : '❌ No'}</td>
-						<td>${user.has_error ? '✅ Yes' : '❌ No'}</td>
-						<td>${user.crash_titles.length > 0 ? user.crash_titles.join('; ') : '-'}</td>
-						<td>${user.error_titles.length > 0 ? user.error_titles.join('; ') : '-'}</td>
-						<td>${user.crash_count}</td>
-						<td>${user.error_count}</td>
-						<td>${user.platform}</td>
-						<td>${user.risk_score}</td>
-						<td>${user.last_seen ? new Date(user.last_seen).toLocaleString() : '-'}</td>
-					</tr>
-				`).join('');
+				tableBody.innerHTML = csvAnalysisResults.map(user => {
+					const crashlyticsUrl = getCrashlyticsUrl(user.crashlytics_issue_id, user.platform);
+					const sentryUrl = getSentryUrl(user.sentry_group_id, user.sentry_org, user.sentry_project);
+					
+					let linksHtml = '<div style="display: flex; gap: 8px; flex-wrap: wrap;">';
+					if (crashlyticsUrl) {
+						linksHtml += `<a href="${crashlyticsUrl}" target="_blank" rel="noopener noreferrer" style="color: #667eea; text-decoration: none; font-size: 12px;">🔥 Crashlytics</a>`;
+					}
+					if (sentryUrl) {
+						linksHtml += `<a href="${sentryUrl}" target="_blank" rel="noopener noreferrer" style="color: #667eea; text-decoration: none; font-size: 12px;">🐛 Sentry</a>`;
+					}
+					if (!crashlyticsUrl && !sentryUrl) {
+						linksHtml += '<span style="color: #718096; font-size: 12px;">-</span>';
+					}
+					linksHtml += '</div>';
+					
+					return `
+						<tr>
+							<td style="font-family: monospace; font-size: 12px;">${user.distinct_id}</td>
+							<td>${user.has_crash ? '✅ Yes' : '❌ No'}</td>
+							<td>${user.has_error ? '✅ Yes' : '❌ No'}</td>
+							<td>${user.crash_titles.length > 0 ? user.crash_titles.join('; ') : '-'}</td>
+							<td>${user.error_titles.length > 0 ? user.error_titles.join('; ') : '-'}</td>
+							<td>${user.crash_count}</td>
+							<td>${user.error_count}</td>
+							<td>${user.platform}</td>
+							<td>${user.risk_score}</td>
+							<td>${user.last_seen ? new Date(user.last_seen).toLocaleString() : '-'}</td>
+							<td>${linksHtml}</td>
+						</tr>
+					`;
+				}).join('');
 			}
 		}
 
@@ -6047,19 +6265,27 @@
 			}
 
 			// Create CSV content
-			const headers = ['Distinct ID', 'Has Crash', 'Has Error', 'Crash Titles', 'Error Titles', 'Crash Count', 'Error Count', 'Platform', 'Risk Score', 'Last Seen'];
-			const rows = csvAnalysisResults.map(user => [
-				user.distinct_id,
-				user.has_crash ? 'Yes' : 'No',
-				user.has_error ? 'Yes' : 'No',
-				user.crash_titles.join('; '),
-				user.error_titles.join('; '),
-				user.crash_count,
-				user.error_count,
-				user.platform,
-				user.risk_score,
-				user.last_seen || ''
-			]);
+			const headers = ['Distinct ID', 'Has Crash', 'Has Error', 'Crash Titles', 'Error Titles', 'Crash Count', 'Error Count', 'Platform', 'Risk Score', 'Last Seen', 'Crashlytics Issue ID', 'Sentry Group ID', 'Crashlytics Link', 'Sentry Link'];
+			const rows = csvAnalysisResults.map(user => {
+				const crashlyticsUrl = getCrashlyticsUrl(user.crashlytics_issue_id, user.platform);
+				const sentryUrl = getSentryUrl(user.sentry_group_id);
+				return [
+					user.distinct_id,
+					user.has_crash ? 'Yes' : 'No',
+					user.has_error ? 'Yes' : 'No',
+					user.crash_titles.join('; '),
+					user.error_titles.join('; '),
+					user.crash_count,
+					user.error_count,
+					user.platform,
+					user.risk_score,
+					user.last_seen || '',
+					user.crashlytics_issue_id || '',
+					user.sentry_group_id || '',
+					crashlyticsUrl || '',
+					sentryUrl || ''
+				];
+			});
 
 			const csvContent = [
 				headers.join(','),
