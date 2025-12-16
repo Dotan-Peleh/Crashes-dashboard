@@ -467,6 +467,124 @@
 			border-top: 1px solid #e2e8f0;
 		}
 
+		/* CSV Analysis Section Styles */
+		.csv-analysis-section {
+			background: rgba(255, 255, 255, 0.95);
+			border-radius: 15px;
+			padding: 25px;
+			margin-bottom: 25px;
+			box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+		}
+
+		.csv-upload-container {
+			margin-bottom: 20px;
+		}
+
+		.csv-upload-header h3 {
+			color: #2d3748;
+			font-size: 20px;
+			margin-bottom: 8px;
+		}
+
+		.csv-upload-header p {
+			color: #718096;
+			font-size: 14px;
+			margin-bottom: 15px;
+		}
+
+		.csv-upload-controls {
+			display: flex;
+			gap: 15px;
+			align-items: center;
+			flex-wrap: wrap;
+		}
+
+		.file-upload-wrapper {
+			display: flex;
+			align-items: center;
+		}
+
+		.csv-results-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 20px;
+		}
+
+		.csv-results-header h3 {
+			color: #2d3748;
+			font-size: 18px;
+		}
+
+		.csv-summary-stats {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+			gap: 15px;
+			margin-bottom: 25px;
+		}
+
+		.summary-card {
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			border-radius: 10px;
+			padding: 20px;
+			color: white;
+			text-align: center;
+		}
+
+		.summary-label {
+			font-size: 12px;
+			opacity: 0.9;
+			margin-bottom: 8px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+		}
+
+		.summary-value {
+			font-size: 32px;
+			font-weight: bold;
+		}
+
+		.common-issues-section {
+			background: #f7fafc;
+			border-radius: 10px;
+			padding: 20px;
+			margin-bottom: 20px;
+		}
+
+		.common-issues-section h4 {
+			color: #2d3748;
+			margin-bottom: 15px;
+		}
+
+		.issue-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 12px;
+			background: white;
+			border-radius: 8px;
+			margin-bottom: 8px;
+			border-left: 4px solid #667eea;
+		}
+
+		.issue-item .issue-name {
+			flex: 1;
+			font-weight: 500;
+			color: #2d3748;
+		}
+
+		.issue-item .issue-percentage {
+			font-weight: bold;
+			color: #667eea;
+			font-size: 16px;
+		}
+
+		.issue-item .issue-count {
+			color: #718096;
+			font-size: 14px;
+			margin-left: 10px;
+		}
+
 		.btn-search {
 			background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
 			color: white;
@@ -862,34 +980,347 @@
 		th.sort-desc .sort-indicator {
 			content: '↓';
 		}
+
+		/* Responsive Styles for Mobile Devices */
+		@media (max-width: 768px) {
+			body {
+				padding: 10px;
+			}
+
+			.dashboard {
+				max-width: 100%;
+			}
+
+			.header {
+				flex-direction: column;
+				align-items: flex-start;
+				gap: 15px;
+				padding: 20px;
+			}
+
+			.header-content h1 {
+				font-size: 24px;
+			}
+
+			.header-actions {
+				width: 100%;
+				flex-direction: column;
+				gap: 10px;
+			}
+
+			.header-actions .btn-primary,
+			.header-actions .btn-secondary {
+				width: 100%;
+				justify-content: center;
+			}
+
+			.controls {
+				padding: 15px;
+			}
+
+			.controls-header {
+				flex-direction: column;
+				align-items: flex-start;
+				gap: 15px;
+			}
+
+			.controls-grid {
+				grid-template-columns: 1fr;
+				gap: 15px;
+			}
+
+			.filters {
+				flex-direction: column;
+				gap: 15px;
+			}
+
+			.filter-group {
+				width: 100%;
+			}
+
+			.multi-select {
+				width: 100%;
+			}
+
+			.date-range-container {
+				width: 100%;
+			}
+
+			.date-range-type {
+				flex-wrap: wrap;
+			}
+
+			.metrics {
+				grid-template-columns: 1fr;
+				gap: 15px;
+				margin-bottom: 20px;
+			}
+
+			.metric-card {
+				padding: 20px;
+			}
+
+			.metric-value {
+				font-size: 28px;
+			}
+
+			.csv-analysis-section {
+				padding: 20px;
+				margin-bottom: 20px;
+			}
+
+			.csv-upload-header h3 {
+				font-size: 18px;
+			}
+
+			.csv-upload-controls {
+				flex-direction: column;
+				gap: 10px;
+			}
+
+			.csv-upload-controls .btn-primary,
+			.csv-upload-controls .btn-secondary {
+				width: 100%;
+			}
+
+			.file-upload-wrapper {
+				width: 100%;
+				flex-direction: column;
+				align-items: stretch;
+			}
+
+			.file-upload-wrapper button {
+				width: 100%;
+			}
+
+			#csvFileName {
+				margin-left: 0;
+				margin-top: 10px;
+				display: block;
+			}
+
+			.csv-results-header {
+				flex-direction: column;
+				align-items: flex-start;
+				gap: 15px;
+			}
+
+			.csv-results-header button {
+				width: 100%;
+			}
+
+			.csv-summary-stats {
+				grid-template-columns: 1fr;
+				gap: 15px;
+			}
+
+			.charts {
+				grid-template-columns: 1fr;
+				gap: 15px;
+				margin-bottom: 20px;
+			}
+
+			.chart-container {
+				padding: 20px;
+				margin-bottom: 20px;
+			}
+
+			.chart-container h3 {
+				font-size: 16px;
+			}
+
+			.table-container {
+				padding: 15px;
+				overflow-x: auto;
+				-webkit-overflow-scrolling: touch;
+			}
+
+			table {
+				min-width: 600px;
+			}
+
+			th, td {
+				padding: 8px;
+				font-size: 12px;
+			}
+
+			.btn-primary,
+			.btn-secondary {
+				padding: 10px 20px;
+				font-size: 14px;
+			}
+
+			.search-results-btn {
+				width: 100%;
+				margin-bottom: 20px;
+			}
+		}
+
+		@media (max-width: 480px) {
+			body {
+				padding: 8px;
+			}
+
+			.header {
+				padding: 15px;
+			}
+
+			.header-content h1 {
+				font-size: 20px;
+				margin-bottom: 8px;
+			}
+
+			.header-content .subtitle {
+				font-size: 12px;
+			}
+
+			.controls {
+				padding: 12px;
+			}
+
+			.metric-card {
+				padding: 15px;
+			}
+
+			.metric-label {
+				font-size: 11px;
+			}
+
+			.metric-value {
+				font-size: 24px;
+			}
+
+			.metric-change {
+				font-size: 11px;
+			}
+
+			.csv-analysis-section {
+				padding: 15px;
+			}
+
+			.csv-upload-header h3 {
+				font-size: 16px;
+			}
+
+			.csv-upload-header p {
+				font-size: 12px;
+			}
+
+			.chart-container {
+				padding: 15px;
+			}
+
+			.chart-container h3 {
+				font-size: 14px;
+				margin-bottom: 15px;
+			}
+
+			.table-container {
+				padding: 10px;
+			}
+
+			th, td {
+				padding: 6px;
+				font-size: 11px;
+			}
+
+			.btn-primary,
+			.btn-secondary {
+				padding: 8px 16px;
+				font-size: 13px;
+			}
+
+			.status {
+				padding: 6px 12px;
+				font-size: 11px;
+			}
+
+			.filter-group {
+				margin-bottom: 15px;
+			}
+
+			.filter-group label {
+				font-size: 12px;
+			}
+
+			select,
+			input[type="text"] {
+				padding: 8px;
+				font-size: 14px;
+			}
+
+			.common-issues-section h4 {
+				font-size: 14px;
+			}
+		}
+
+		/* Ensure tables are scrollable on mobile */
+		@media (max-width: 768px) {
+			.table-container {
+				position: relative;
+			}
+
+			.table-container::before,
+			.table-container::after {
+				content: '';
+				position: absolute;
+				top: 0;
+				bottom: 0;
+				width: 20px;
+				pointer-events: none;
+				z-index: 1;
+			}
+
+			.table-container::before {
+				left: 0;
+				background: linear-gradient(to right, rgba(255,255,255,0.95), transparent);
+			}
+
+			.table-container::after {
+				right: 0;
+				background: linear-gradient(to left, rgba(255,255,255,0.95), transparent);
+			}
+		}
+
+		/* Improve touch targets on mobile */
+		@media (max-width: 768px) {
+			button,
+			.btn-primary,
+			.btn-secondary,
+			select,
+			input[type="text"],
+			input[type="file"] + label {
+				min-height: 44px;
+				touch-action: manipulation;
+			}
+		}
 	</style>
 </head>
 <body>
-	<div class="dashboard">
-		<div class="header">
-			<div class="header-content">
-				<h1>🚨 Live Crash Analytics Dashboard</h1>
-				<div class="subtitle">BigQuery Connected - Real-time crash monitoring</div>
-				<div class="last-updated" id="lastUpdated">Last updated: Never</div>
-			</div>
-			<div class="header-actions">
-				<div class="status disconnected" id="connectionStatus">
-					<span class="status-dot"></span>
-					<span>Disconnected</span>
-				</div>
-				<button class="btn-secondary" id="authBtn" onclick="authenticate()">
-					🔐 Connect to BigQuery
-				</button>
-				<button class="btn-primary" id="refreshBtn" onclick="refreshData()" disabled>
-					🔄 Refresh Data
-				</button>
-				<button class="btn-secondary" id="settingsBtn" onclick="openSettings()">
-					⚙️ Settings
-				</button>
-			</div>
+	<div class="header">
+		<div class="header-content">
+			<h1>🚨 Live Crash Analytics Dashboard</h1>
+			<div class="subtitle">BigQuery Connected - Real-time crash monitoring</div>
+			<div class="last-updated" id="lastUpdated">Last updated: Never</div>
 		</div>
+		<div class="header-actions">
+			<div class="status disconnected" id="connectionStatus">
+				<span class="status-dot"></span>
+				<span>Disconnected</span>
+			</div>
+			<button class="btn-secondary" id="authBtn" onclick="authenticate()">
+				🔐 Connect to BigQuery
+			</button>
+			<button class="btn-primary" id="refreshBtn" onclick="refreshData()" disabled>
+				🔄 Refresh Data
+			</button>
+			<button class="btn-secondary" id="settingsBtn" onclick="openSettings()">
+				⚙️ Settings
+			</button>
+		</div>
+	</div>
 
-		<div class="controls">
+	<div class="controls">
 			<div class="controls-header">
 				<h3>Filters & Settings</h3>
 				<div class="auto-refresh">
@@ -1065,6 +1496,91 @@
 			</div>
 		</div>
 
+	<!-- CSV Upload and Analysis Section -->
+	<div class="csv-analysis-section">
+		<div class="csv-upload-container">
+			<div class="csv-upload-header">
+				<h3>📊 Analyze User List (CSV)</h3>
+				<p>Upload a CSV file with distinct_id's to find common errors/crashes</p>
+			</div>
+			<div class="csv-upload-controls">
+				<div class="file-upload-wrapper">
+					<input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+					<button class="btn-primary" onclick="document.getElementById('csvFileInput').click()">
+						📁 Choose CSV File
+					</button>
+					<span id="csvFileName" style="margin-left: 10px; color: #718096;"></span>
+				</div>
+				<button class="btn-primary" id="analyzeCsvBtn" onclick="analyzeCsvUsers()" disabled>
+					🔍 Analyze Users
+				</button>
+				<button class="btn-secondary" id="clearCsvBtn" onclick="clearCsvAnalysis()" style="display: none;">
+					🗑️ Clear Results
+				</button>
+			</div>
+			<div id="csvAnalysisStatus" style="margin-top: 15px; padding: 10px; border-radius: 8px; display: none;"></div>
+		</div>
+
+		<!-- Results Table -->
+		<div id="csvResultsContainer" style="display: none; margin-top: 25px;">
+			<div class="csv-results-header">
+				<h3>Analysis Results</h3>
+				<button class="btn-secondary" onclick="exportCsvResults()">
+					📊 Export Results to CSV
+				</button>
+			</div>
+			
+			<!-- Summary Statistics -->
+			<div class="csv-summary-stats">
+				<div class="summary-card">
+					<div class="summary-label">Total Users Analyzed</div>
+					<div class="summary-value" id="totalUsersCount">0</div>
+				</div>
+				<div class="summary-card">
+					<div class="summary-label">Users with Crashes</div>
+					<div class="summary-value" id="usersWithCrashes">0</div>
+				</div>
+				<div class="summary-card">
+					<div class="summary-label">Users with Errors</div>
+					<div class="summary-value" id="usersWithErrors">0</div>
+				</div>
+				<div class="summary-card">
+					<div class="summary-label">Users with No Issues</div>
+					<div class="summary-value" id="usersWithNoIssues">0</div>
+				</div>
+			</div>
+
+			<!-- Common Errors/Crashes -->
+			<div class="common-issues-section">
+				<h4>🔍 Common Issues (by % of affected users)</h4>
+				<div id="commonIssuesList" style="margin-top: 10px;"></div>
+			</div>
+
+			<!-- Detailed Results Table -->
+			<div class="table-container" style="margin-top: 25px;">
+				<table id="csvResultsTable">
+					<thead>
+						<tr>
+							<th data-sort="distinct_id">Distinct ID <span class="sort-indicator">↕</span></th>
+							<th data-sort="has_crash">Has Crash? <span class="sort-indicator">↕</span></th>
+							<th data-sort="has_error">Has Error? <span class="sort-indicator">↕</span></th>
+							<th data-sort="crash_title">Crash Title</th>
+							<th data-sort="error_title">Error Title</th>
+							<th data-sort="crash_count">Crash Count <span class="sort-indicator">↕</span></th>
+							<th data-sort="error_count">Error Count <span class="sort-indicator">↕</span></th>
+							<th data-sort="platform">Platform <span class="sort-indicator">↕</span></th>
+							<th data-sort="risk_score">Risk Score <span class="sort-indicator">↕</span></th>
+							<th data-sort="last_seen">Last Seen <span class="sort-indicator">↕</span></th>
+						</tr>
+					</thead>
+					<tbody id="csvResultsTableBody">
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
+	<div class="dashboard">
 		<div class="metrics">
 			<div class="metric-card loading">
 				<div class="metric-label">Total Events</div>
@@ -5217,7 +5733,353 @@
 		}
 
 		// Initialize search button state on page load
+		// CSV Analysis Functions
+		let csvDistinctIds = [];
+		let csvAnalysisResults = [];
+
+		// Handle CSV file input - will be initialized in DOMContentLoaded
+		function initializeCsvUpload() {
+			const csvFileInput = document.getElementById('csvFileInput');
+			if (csvFileInput) {
+				csvFileInput.addEventListener('change', function(e) {
+					const file = e.target.files[0];
+					if (!file) return;
+
+					const fileName = document.getElementById('csvFileName');
+					if (fileName) {
+						fileName.textContent = file.name;
+					}
+
+					const reader = new FileReader();
+					reader.onload = function(event) {
+						try {
+							const text = event.target.result;
+							const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+							
+							// Parse CSV - handle both single column and multi-column formats
+							csvDistinctIds = [];
+							lines.forEach((line, index) => {
+								if (index === 0 && line.toLowerCase().includes('distinct_id')) {
+									// Skip header row
+									return;
+								}
+								const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+								const distinctId = values[0]; // First column is distinct_id
+								if (distinctId && distinctId.length > 0) {
+									csvDistinctIds.push(distinctId);
+								}
+							});
+
+							if (csvDistinctIds.length === 0) {
+								showCsvStatus('No distinct_id values found in CSV file', 'error');
+								document.getElementById('analyzeCsvBtn').disabled = true;
+								return;
+							}
+
+							showCsvStatus(`Loaded ${csvDistinctIds.length} distinct_id's from CSV`, 'success');
+							document.getElementById('analyzeCsvBtn').disabled = false;
+						} catch (error) {
+							console.error('Error parsing CSV:', error);
+							showCsvStatus('Error parsing CSV file: ' + error.message, 'error');
+							document.getElementById('analyzeCsvBtn').disabled = true;
+						}
+					};
+					reader.readAsText(file);
+				});
+			}
+		}
+
+		function showCsvStatus(message, type) {
+			const statusDiv = document.getElementById('csvAnalysisStatus');
+			if (!statusDiv) return;
+
+			statusDiv.style.display = 'block';
+			statusDiv.textContent = message;
+			statusDiv.style.background = type === 'success' ? '#c6f6d5' : type === 'error' ? '#fed7d7' : '#fef5e7';
+			statusDiv.style.color = type === 'success' ? '#22543d' : type === 'error' ? '#c53030' : '#d68910';
+		}
+
+		async function analyzeCsvUsers() {
+			if (!isAuthenticated) {
+				alert('Please authenticate with BigQuery first');
+				return;
+			}
+
+			if (csvDistinctIds.length === 0) {
+				alert('Please upload a CSV file with distinct_id values first');
+				return;
+			}
+
+			showCsvStatus('Analyzing users...', 'info');
+			document.getElementById('analyzeCsvBtn').disabled = true;
+
+			try {
+				// Build query to get crash/error data for the distinct_id's
+				const distinctIdsList = csvDistinctIds.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
+				
+				const query = `
+					SELECT 
+						user_id as distinct_id,
+						platform,
+						is_fatal,
+						crashlytics_issue_title,
+						crashlytics_error_type,
+						sentry_latest_error,
+						crashlytics_event_count,
+						sentry_total_errors,
+						total_error_count,
+						user_risk_score,
+						COALESCE(crashlytics_last_occurrence, sentry_last_seen) as last_seen,
+						data_source
+					FROM \`${CONFIG.PROJECT_ID}.${CONFIG.DATASET_ID}.crash_analytics_dashboard\`
+					WHERE user_id IN (${distinctIdsList})
+					ORDER BY user_id, total_error_count DESC
+				`;
+
+				const result = await executeBigQuery(query);
+				
+				if (!result.rows || result.rows.length === 0) {
+					showCsvStatus('No crash/error data found for the provided distinct_id\'s', 'error');
+					document.getElementById('analyzeCsvBtn').disabled = false;
+					return;
+				}
+
+				// Process results
+				csvAnalysisResults = [];
+				const userDataMap = new Map();
+
+				result.rows.forEach(row => {
+					const distinctId = row.f[0]?.v || '';
+					const platform = row.f[1]?.v || 'Unknown';
+					const isFatal = row.f[2]?.v === 'true' || row.f[2]?.v === true;
+					const crashTitle = row.f[3]?.v || '';
+					const crashErrorType = row.f[4]?.v || '';
+					const sentryError = row.f[5]?.v || '';
+					const crashCount = parseInt(row.f[6]?.v) || 0;
+					const errorCount = parseInt(row.f[7]?.v) || 0;
+					const totalErrors = parseInt(row.f[8]?.v) || 0;
+					const riskScore = parseInt(row.f[9]?.v) || 0;
+					const lastSeen = row.f[10]?.v || '';
+					const dataSource = row.f[11]?.v || '';
+
+					if (!userDataMap.has(distinctId)) {
+						userDataMap.set(distinctId, {
+							distinct_id: distinctId,
+							platform: platform,
+							has_crash: false,
+							has_error: false,
+							crash_titles: [],
+							error_titles: [],
+							crash_count: 0,
+							error_count: 0,
+							total_error_count: 0,
+							risk_score: riskScore,
+							last_seen: lastSeen,
+							data_source: dataSource
+						});
+					}
+
+					const userData = userDataMap.get(distinctId);
+					
+					if (isFatal && crashTitle) {
+						userData.has_crash = true;
+						if (!userData.crash_titles.includes(crashTitle)) {
+							userData.crash_titles.push(crashTitle);
+						}
+						userData.crash_count += crashCount;
+					} else if (crashTitle || sentryError) {
+						userData.has_error = true;
+						const errorTitle = crashTitle || sentryError;
+						if (!userData.error_titles.includes(errorTitle)) {
+							userData.error_titles.push(errorTitle);
+						}
+						userData.error_count += errorCount;
+					}
+
+					userData.total_error_count = Math.max(userData.total_error_count, totalErrors);
+					userData.risk_score = Math.max(userData.risk_score, riskScore);
+				});
+
+				// Convert map to array and add users with no data
+				csvDistinctIds.forEach(distinctId => {
+					if (!userDataMap.has(distinctId)) {
+						userDataMap.set(distinctId, {
+							distinct_id: distinctId,
+							platform: 'Unknown',
+							has_crash: false,
+							has_error: false,
+							crash_titles: [],
+							error_titles: [],
+							crash_count: 0,
+							error_count: 0,
+							total_error_count: 0,
+							risk_score: 0,
+							last_seen: '',
+							data_source: 'No Data'
+						});
+					}
+				});
+
+				csvAnalysisResults = Array.from(userDataMap.values());
+
+				// Display results
+				displayCsvResults();
+				showCsvStatus(`Analysis complete: ${csvAnalysisResults.length} users analyzed`, 'success');
+				document.getElementById('clearCsvBtn').style.display = 'inline-block';
+			} catch (error) {
+				console.error('Error analyzing CSV users:', error);
+				showCsvStatus('Error analyzing users: ' + error.message, 'error');
+			} finally {
+				document.getElementById('analyzeCsvBtn').disabled = false;
+			}
+		}
+
+		function displayCsvResults() {
+			const resultsContainer = document.getElementById('csvResultsContainer');
+			if (!resultsContainer) return;
+
+			resultsContainer.style.display = 'block';
+
+			// Calculate summary statistics
+			const totalUsers = csvAnalysisResults.length;
+			const usersWithCrashes = csvAnalysisResults.filter(u => u.has_crash).length;
+			const usersWithErrors = csvAnalysisResults.filter(u => u.has_error && !u.has_crash).length;
+			const usersWithNoIssues = csvAnalysisResults.filter(u => !u.has_crash && !u.has_error).length;
+
+			document.getElementById('totalUsersCount').textContent = totalUsers;
+			document.getElementById('usersWithCrashes').textContent = usersWithCrashes;
+			document.getElementById('usersWithErrors').textContent = usersWithErrors;
+			document.getElementById('usersWithNoIssues').textContent = usersWithNoIssues;
+
+			// Calculate common issues
+			const crashTitleMap = new Map();
+			const errorTitleMap = new Map();
+
+			csvAnalysisResults.forEach(user => {
+				user.crash_titles.forEach(title => {
+					if (title) {
+						crashTitleMap.set(title, (crashTitleMap.get(title) || 0) + 1);
+					}
+				});
+				user.error_titles.forEach(title => {
+					if (title) {
+						errorTitleMap.set(title, (errorTitleMap.get(title) || 0) + 1);
+					}
+				});
+			});
+
+			// Combine and sort by percentage
+			const commonIssues = [];
+			crashTitleMap.forEach((count, title) => {
+				commonIssues.push({
+					name: title,
+					count: count,
+					percentage: ((count / totalUsers) * 100).toFixed(1),
+					type: 'Crash'
+				});
+			});
+			errorTitleMap.forEach((count, title) => {
+				commonIssues.push({
+					name: title,
+					count: count,
+					percentage: ((count / totalUsers) * 100).toFixed(1),
+					type: 'Error'
+				});
+			});
+
+			commonIssues.sort((a, b) => parseFloat(b.percentage) - parseFloat(a.percentage));
+
+			// Display common issues
+			const commonIssuesList = document.getElementById('commonIssuesList');
+			if (commonIssuesList) {
+				if (commonIssues.length === 0) {
+					commonIssuesList.innerHTML = '<p style="color: #718096;">No common issues found</p>';
+				} else {
+					commonIssuesList.innerHTML = commonIssues.slice(0, 20).map(issue => `
+						<div class="issue-item">
+							<div class="issue-name">
+								<strong>${issue.type}:</strong> ${issue.name}
+							</div>
+							<div>
+								<span class="issue-percentage">${issue.percentage}%</span>
+								<span class="issue-count">(${issue.count} users)</span>
+							</div>
+						</div>
+					`).join('');
+				}
+			}
+
+			// Display detailed table
+			const tableBody = document.getElementById('csvResultsTableBody');
+			if (tableBody) {
+				tableBody.innerHTML = csvAnalysisResults.map(user => `
+					<tr>
+						<td style="font-family: monospace; font-size: 12px;">${user.distinct_id}</td>
+						<td>${user.has_crash ? '✅ Yes' : '❌ No'}</td>
+						<td>${user.has_error ? '✅ Yes' : '❌ No'}</td>
+						<td>${user.crash_titles.length > 0 ? user.crash_titles.join('; ') : '-'}</td>
+						<td>${user.error_titles.length > 0 ? user.error_titles.join('; ') : '-'}</td>
+						<td>${user.crash_count}</td>
+						<td>${user.error_count}</td>
+						<td>${user.platform}</td>
+						<td>${user.risk_score}</td>
+						<td>${user.last_seen ? new Date(user.last_seen).toLocaleString() : '-'}</td>
+					</tr>
+				`).join('');
+			}
+		}
+
+		function clearCsvAnalysis() {
+			csvDistinctIds = [];
+			csvAnalysisResults = [];
+			document.getElementById('csvFileInput').value = '';
+			document.getElementById('csvFileName').textContent = '';
+			document.getElementById('csvAnalysisStatus').style.display = 'none';
+			document.getElementById('csvResultsContainer').style.display = 'none';
+			document.getElementById('analyzeCsvBtn').disabled = true;
+			document.getElementById('clearCsvBtn').style.display = 'none';
+		}
+
+		function exportCsvResults() {
+			if (csvAnalysisResults.length === 0) {
+				alert('No results to export');
+				return;
+			}
+
+			// Create CSV content
+			const headers = ['Distinct ID', 'Has Crash', 'Has Error', 'Crash Titles', 'Error Titles', 'Crash Count', 'Error Count', 'Platform', 'Risk Score', 'Last Seen'];
+			const rows = csvAnalysisResults.map(user => [
+				user.distinct_id,
+				user.has_crash ? 'Yes' : 'No',
+				user.has_error ? 'Yes' : 'No',
+				user.crash_titles.join('; '),
+				user.error_titles.join('; '),
+				user.crash_count,
+				user.error_count,
+				user.platform,
+				user.risk_score,
+				user.last_seen || ''
+			]);
+
+			const csvContent = [
+				headers.join(','),
+				...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+			].join('\n');
+
+			// Download
+			const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+			const link = document.createElement('a');
+			const url = URL.createObjectURL(blob);
+			link.setAttribute('href', url);
+			link.setAttribute('download', `user_analysis_${new Date().toISOString().split('T')[0]}.csv`);
+			link.style.visibility = 'hidden';
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+		}
+
 		document.addEventListener('DOMContentLoaded', () => {
+			initializeCsvUpload();
 			updateSearchButtonState();
 			// Keep URL in sync when typing in userIdFilter
 			const userIdInput = document.getElementById('userIdFilter');
