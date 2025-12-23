@@ -1482,11 +1482,6 @@
 					<label>User ID (distinct_id)</label>
 					<input type="text" id="userIdFilter" placeholder="Enter specific user ID" title="Filter by specific user/distinct_id" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" name="distinct_user_id">
 				</div>
-
-				<div class="filter-group">
-					<label>Exception Name</label>
-					<input type="text" id="exceptionFilter" placeholder="e.g. NullPointerException" title="Filter by exception / error name" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" name="exception_name">
-				</div>
 			</div>
 
 			<div class="search-button-container">
@@ -2142,7 +2137,7 @@
 			try {
 				const params = new URLSearchParams(window.location.search);
 				if (params.size === 0) return false;
-				const keys = new Set(['dateType','dateRange','from','to','hours','platform','risk','source','crash','memory','country','appVersion','user','exception']);
+				const keys = new Set(['dateType','dateRange','from','to','hours','platform','risk','source','crash','memory','country','appVersion','user']);
 				for (const k of params.keys()) {
 					if (keys.has(k)) return true;
 				}
@@ -2217,10 +2212,6 @@
 				// User ID filter
 				const userId = document.getElementById('userIdFilter')?.value.trim();
 				if (userId) params.set('user', userId);
-
-				// Exception name filter
-				const exceptionName = document.getElementById('exceptionFilter')?.value.trim();
-				if (exceptionName) params.set('exception', exceptionName);
 
 				const newUrl = `${window.location.pathname}?${params.toString()}`;
 				history.replaceState(null, '', newUrl);
@@ -2311,14 +2302,6 @@
 					setUserIdFilterValue(user);
 				} else {
 					setUserIdFilterValue('');
-				}
-
-				// Exception name
-				const exception = params.get('exception');
-				const exceptionInput = document.getElementById('exceptionFilter');
-				if (exceptionInput) {
-					exceptionInput.value = exception || '';
-					exceptionInput.title = exception || '';
 				}
 			} catch (e) {
 				console.warn('Failed to apply filters from URL:', e);
@@ -2720,20 +2703,6 @@
 				console.log('Added user ID filter:', userIdFilter);
 			}
 
-			// Handle exception name filter (supports partial match, case-insensitive)
-			const exceptionFilter = document.getElementById('exceptionFilter').value.trim();
-			if (exceptionFilter) {
-				// Match against common exception / error fields from Crashlytics and Sentry
-				const escaped = exceptionFilter.replace(/'/g, "\\'");
-				const exceptionCondition = `
-					LOWER(COALESCE(crashlytics_error_type, '')) LIKE LOWER('%${escaped}%')
-					OR LOWER(COALESCE(crashlytics_issue_title, '')) LIKE LOWER('%${escaped}%')
-					OR LOWER(COALESCE(sentry_latest_error, '')) LIKE LOWER('%${escaped}%')
-				`;
-				whereConditions.push(`(${exceptionCondition})`);
-				console.log('Added exception filter:', exceptionFilter);
-			}
-
 			console.log('All where conditions:', whereConditions);
 			
 			const finalQuery = `
@@ -2782,7 +2751,11 @@
 					SELECT 
 						COALESCE(crashlytics_error_type, sentry_latest_error, 'Unknown') as error_type,
 						COUNT(*) as error_count,
-						STRING_AGG(DISTINCT COALESCE(sentry_latest_error, 'No details')) as error_details,
+						-- Limit the number of distinct error detail strings aggregated to avoid oversized rows
+						STRING_AGG(
+							DISTINCT COALESCE(sentry_latest_error, 'No details')
+							LIMIT 50
+						) as error_details,
 						platform
 					FROM filtered_data
 					WHERE COALESCE(crashlytics_error_type, sentry_latest_error) IS NOT NULL
@@ -3139,7 +3112,8 @@
 							LIMIT 20
 						)
 					) as error_types_json,
-											(
+					(
+						-- Limit the number of high-risk users and truncate very large text fields
 						SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(
 							user_id,
 							platform,
@@ -3165,9 +3139,10 @@
 							has_correlated_errors,
 							error_duration_hours,
 							errors_per_hour,
-							top_sentry_errors_json,
-							last_5_breadcrumbs_formatted
-						) ORDER BY user_risk_score DESC, total_error_count DESC))
+							-- Truncate large JSON/text fields to keep response size manageable
+							SUBSTR(top_sentry_errors_json, 1, 4000) as top_sentry_errors_json,
+							SUBSTR(last_5_breadcrumbs_formatted, 1, 4000) as last_5_breadcrumbs_formatted
+						) ORDER BY user_risk_score DESC, total_error_count DESC LIMIT 500))
 						FROM user_stats
 					) as high_risk_users_json
 				FROM metrics
@@ -3234,14 +3209,10 @@
 					} catch (error) {
 						// Check if error is due to auth
 						if (error.status === 401 || error.status === 403) {
-							// Do NOT attempt to silently re-auth inside a non‑user gesture,
-							// as many browsers will block the OAuth popup and cause
-							// "Failed to open popup window" errors for some users.
-							console.log('Auth error detected during BigQuery call; will surface to caller so user can re‑authenticate via explicit action.');
-							
-							// Break out of retry loop and let the outer catch handle
-							// clearing tokens and showing the auth modal.
-							throw error;
+							console.log('Auth error, attempting to refresh token...');
+							await signIn();
+							retryCount++;
+							continue;
 						}
 						
 						// For other errors, retry after a delay
@@ -5174,18 +5145,6 @@
 					whereConditions.push(`user_id = '${userIdFilter}'`);
 				}
 
-				// Handle exception name filter for CSV export
-				const exceptionFilter = document.getElementById('exceptionFilter').value.trim();
-				if (exceptionFilter) {
-					const escaped = exceptionFilter.replace(/'/g, "\\'");
-					const exceptionCondition = `
-						LOWER(COALESCE(crashlytics_error_type, '')) LIKE LOWER('%${escaped}%')
-						OR LOWER(COALESCE(crashlytics_issue_title, '')) LIKE LOWER('%${escaped}%')
-						OR LOWER(COALESCE(sentry_latest_error, '')) LIKE LOWER('%${escaped}%')
-					`;
-					whereConditions.push(`(${exceptionCondition})`);
-				}
-
 				// Build export query
 				const query = `
 					WITH filtered_data AS (
@@ -6317,16 +6276,6 @@
 				userIdInput.addEventListener('change', () => {
 					updateURLWithCurrentFilters();
 					setUserIdFilterValue(userIdInput.value);
-				});
-			}
-			// Keep URL in sync for exceptionFilter as well
-			const exceptionInput = document.getElementById('exceptionFilter');
-			if (exceptionInput) {
-				exceptionInput.addEventListener('input', () => {
-					updateURLWithCurrentFilters();
-				});
-				exceptionInput.addEventListener('change', () => {
-					updateURLWithCurrentFilters();
 				});
 			}
 			// If URL contains filters, auto-run one search so shared links open populated
