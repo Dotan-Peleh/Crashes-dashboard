@@ -3207,12 +3207,15 @@
 
 						return response.result;
 					} catch (error) {
-						// Check if error is due to auth
+						// Check if error is due to auth - don't retry, break out immediately
 						if (error.status === 401 || error.status === 403) {
-							console.log('Auth error, attempting to refresh token...');
-							await signIn();
-							retryCount++;
-							continue;
+							console.log('Auth error detected - stopping retries and showing auth modal');
+							// Clear token immediately
+							localStorage.removeItem('bq_access_token');
+							accessToken = null;
+							isAuthenticated = false;
+							// Break out of retry loop and let outer catch handle showing modal
+							throw error;
 						}
 						
 						// For other errors, retry after a delay
@@ -3256,11 +3259,20 @@
 		}
 
 		// Refresh dashboard data
+		let isRefreshing = false;
 		async function refreshData() {
+			// Prevent concurrent refreshes
+			if (isRefreshing) {
+				console.log('Refresh already in progress, skipping...');
+				return;
+			}
+			
 			if (!isAuthenticated || !accessToken || !gapiInited) {
 				authenticate();
 				return;
 			}
+			
+			isRefreshing = true;
 
 			// Show loading state
 			const loadingOverlay = document.getElementById('loadingOverlay');
@@ -3509,7 +3521,11 @@
 
 			} catch (error) {
 				console.error('Error refreshing data:', error);
-				alert('Error loading data: ' + error.message);
+				
+				// Don't show duplicate alerts for auth errors (already shown in executeBigQuery)
+				if (error.status !== 401 && error.status !== 403) {
+					alert('Error loading data: ' + error.message);
+				}
 				
 				// Reset UI on error
 				connectionStatus.className = 'status disconnected';
@@ -3520,7 +3536,8 @@
 				charts = {};
 				
 			} finally {
-				// Reset loading state
+				// Reset loading state and refresh flag
+				isRefreshing = false;
 				loadingOverlay.classList.remove('show');
 				metricCards.forEach(card => card.classList.remove('loading'));
 			}
