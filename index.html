@@ -5687,9 +5687,11 @@
 					const arr = JSON.parse(cleanData);
 					if (Array.isArray(arr)) {
 						for (let i = 0; i < arr.length; i++) {
-							const b = arr[i];
+							let b = arr[i];
+							// Handle double-encoded JSON (array of JSON strings from BQ)
+							if (typeof b === 'string') { try { b = JSON.parse(b); } catch(e) { continue; } }
 							const name = b.name || b.message || b.category || null;
-							if (!name || name === 'Unknown') continue; // skip unnamed events
+							if (!name || name === 'Unknown') continue;
 							const ts = b.timestamp || '';
 							let formattedTs = '';
 							if (ts) {
@@ -5792,12 +5794,14 @@
 				try {
 					const arr = JSON.parse(cleanData);
 					if (Array.isArray(arr)) {
-						for (const b of arr) {
-							const name = b.name || b.message || b.category || null;
+						for (let item of arr) {
+							// Handle double-encoded JSON (array of JSON strings from BQ)
+							if (typeof item === 'string') { try { item = JSON.parse(item); } catch(e) { continue; } }
+							const name = item.name || item.message || item.category || null;
 							if (!name) continue;
 							let ts = '';
-							if (b.timestamp) {
-								try { ts = new Date(b.timestamp).toLocaleString(); } catch(e) { ts = b.timestamp; }
+							if (item.timestamp) {
+								try { ts = new Date(item.timestamp).toLocaleString(); } catch(e) { ts = item.timestamp; }
 							}
 							events.push({ name, timestamp: ts });
 						}
