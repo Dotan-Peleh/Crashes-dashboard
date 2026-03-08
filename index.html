@@ -1192,6 +1192,40 @@
 			width: 100%;
 		}
 
+		.watchdog-chart-wrap {
+			margin-bottom: 20px;
+			background: var(--bg-surface);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-sm);
+			padding: 16px;
+		}
+
+		/* Scroll indicator for wide tables */
+		.table-scroll-wrapper {
+			position: relative;
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch;
+		}
+
+		.table-scroll-wrapper::after {
+			content: 'Scroll for more \2192';
+			position: sticky;
+			right: 0;
+			bottom: 0;
+			display: block;
+			text-align: right;
+			padding: 8px 12px;
+			font-size: 11px;
+			color: var(--text-dim);
+			font-weight: 500;
+			pointer-events: none;
+			background: linear-gradient(to right, transparent 50%, var(--bg-card));
+		}
+
+		.table-scroll-wrapper.scrolled-right::after {
+			display: none;
+		}
+
 		@media (max-width: 768px) {
 			.watchdog-kpis { grid-template-columns: repeat(2, 1fr); }
 			.watchdog-tables { grid-template-columns: 1fr; }
@@ -1703,6 +1737,9 @@
 					<div class="watchdog-kpi-label">Avg per Device</div>
 				</div>
 			</div>
+			<div class="watchdog-chart-wrap">
+				<canvas id="watchdogChart" height="220"></canvas>
+			</div>
 			<div class="watchdog-tables">
 				<div class="watchdog-table-wrap">
 					<h4>Daily Trend</h4>
@@ -1736,6 +1773,7 @@
 				<div class="spinner"></div>
 				Loading user data...
 			</div>
+			<div class="table-scroll-wrapper" id="highRiskScrollWrapper">
 			<table id="userTable" style="display: none;">
 				<thead>
 					<tr>
@@ -1757,6 +1795,7 @@
 				<tbody id="userTableBody">
 				</tbody>
 			</table>
+			</div><!-- /table-scroll-wrapper -->
 		</div>
 	</div>
 
@@ -1848,6 +1887,7 @@
 		let isAuthenticated = false;
 		let autoRefreshInterval = null;
 		let charts = {};
+		let watchdogChartInstance = null;
 		let tokenClient = null;
 		let accessToken = null;
 		let gapiInited = false;
@@ -3626,9 +3666,12 @@
 			document.getElementById('watchdogEventsToday').textContent = eventsToday.toLocaleString();
 			document.getElementById('watchdogAvgPerDevice').textContent = avgPerDevice;
 
-			// Daily trend table
+			// Daily trend table + chart
 			try {
 				const dailyTrend = JSON.parse(row[3]?.v || '[]');
+				// Sort ascending for chart
+				const sorted = [...dailyTrend].sort((a, b) => a.event_date.localeCompare(b.event_date));
+
 				const trendBody = document.getElementById('watchdogTrendBody');
 				trendBody.innerHTML = dailyTrend.map(d => `
 					<tr>
@@ -3637,6 +3680,69 @@
 						<td>${parseInt(d.devices).toLocaleString()}</td>
 					</tr>
 				`).join('');
+
+				// Render chart
+				if (watchdogChartInstance) { watchdogChartInstance.destroy(); }
+				const ctx = document.getElementById('watchdogChart').getContext('2d');
+				watchdogChartInstance = new Chart(ctx, {
+					type: 'bar',
+					data: {
+						labels: sorted.map(d => d.event_date),
+						datasets: [
+							{
+								label: 'Events',
+								data: sorted.map(d => parseInt(d.events)),
+								backgroundColor: 'rgba(220, 53, 69, 0.25)',
+								borderColor: 'rgba(220, 53, 69, 0.8)',
+								borderWidth: 1.5,
+								borderRadius: 3,
+								order: 2
+							},
+							{
+								label: 'Unique Devices',
+								data: sorted.map(d => parseInt(d.devices)),
+								type: 'line',
+								borderColor: '#4f63d2',
+								backgroundColor: 'rgba(79, 99, 210, 0.1)',
+								borderWidth: 2.5,
+								pointRadius: 4,
+								pointBackgroundColor: '#4f63d2',
+								fill: true,
+								tension: 0.3,
+								order: 1
+							}
+						]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						interaction: { intersect: false, mode: 'index' },
+						plugins: {
+							legend: {
+								position: 'top',
+								labels: { font: { family: "'DM Sans', sans-serif", size: 12 }, usePointStyle: true, padding: 16 }
+							},
+							tooltip: {
+								backgroundColor: '#1a1e2c',
+								titleFont: { family: "'DM Sans', sans-serif" },
+								bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
+								padding: 10,
+								cornerRadius: 6
+							}
+						},
+						scales: {
+							x: {
+								grid: { display: false },
+								ticks: { font: { family: "'DM Sans', sans-serif", size: 11 }, color: '#8b95a5' }
+							},
+							y: {
+								beginAtZero: true,
+								grid: { color: 'rgba(0,0,0,0.04)' },
+								ticks: { font: { family: "'JetBrains Mono', monospace", size: 11 }, color: '#8b95a5' }
+							}
+						}
+					}
+				});
 			} catch (e) { console.warn('Watchdog trend parse error:', e); }
 
 			// Errors table
@@ -6393,6 +6499,16 @@
 		document.addEventListener('DOMContentLoaded', () => {
 			initializeCsvUpload();
 			updateSearchButtonState();
+			// Scroll indicator for wide tables
+			const scrollWrapper = document.getElementById('highRiskScrollWrapper');
+			if (scrollWrapper) {
+				const checkScroll = () => {
+					const atEnd = scrollWrapper.scrollLeft + scrollWrapper.clientWidth >= scrollWrapper.scrollWidth - 10;
+					scrollWrapper.classList.toggle('scrolled-right', atEnd);
+				};
+				scrollWrapper.addEventListener('scroll', checkScroll);
+				new ResizeObserver(checkScroll).observe(scrollWrapper);
+			}
 			// Keep URL in sync when typing in userIdFilter
 			const userIdInput = document.getElementById('userIdFilter');
 			if (userIdInput) {
