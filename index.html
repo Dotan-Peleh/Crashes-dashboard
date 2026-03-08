@@ -4127,7 +4127,7 @@
 						${user.last_5_breadcrumbs_formatted ? `
 							<button class="btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-top: 2px;" 
 								onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>
-								${isCriticalEvent ? '🔥 View Critical Events' : '⏰ View All 5 Events'}
+								📋 View All Events
 							</button>
 						` : '<small style="color: #999;">No events available</small>'}
 					</td>
@@ -4234,7 +4234,7 @@
 									${criticalEvents.length > 0 ? criticalEvents.map((e, i) =>
 										`<div style="margin-bottom:3px;font-family:var(--font-mono);font-size:12px;"><span style="color:var(--text-dim);">${i+1}.</span> <span style="color:var(--danger);font-weight:600;">${e.name}</span> <span style="color:var(--text-dim);font-size:11px;">${e.timeDiff || ''}</span></div>`
 									).join('') : (breadcrumbsPreview ? `<div style="font-size:12px;">${breadcrumbsPreview}</div>` : '<span class="user-card-nocritical">No events recorded</span>')}
-									${user.last_5_breadcrumbs_formatted ? `<button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>View All 5 Events</button>` : ''}
+									${user.last_5_breadcrumbs_formatted && user.last_5_breadcrumbs_formatted !== 'null' ? `<button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>📋 View All Events</button>` : '<span style="color:var(--text-dim);font-size:11px;">No Crashlytics events</span>'}
 								</div>
 							</div>
 						</div>
@@ -5770,110 +5770,52 @@
 				alert('No breadcrumb data available for this user.');
 				return;
 			}
-			
+
 			let cleanData = breadcrumbsData.trim();
-			let message = 'Last 5 Events Before Crash:\n\n';
-			
-			// Add crash time context if available
-			if (crashTime) {
-				message += `Crash occurred at: ${new Date(crashTime).toLocaleString()}\n`;
-				message += '='.repeat(50) + '\n';
-				message += '🔥 CRITICAL: Events within 5 seconds of crash\n';
-				message += '⏰ STALE: Events more than 5 seconds before crash\n';
-				message += '='.repeat(50) + '\n\n';
-			}
-			
-			// Handle null cases
 			if (cleanData.startsWith('null') || cleanData === 'null') {
 				alert('No breadcrumb data available for this user.');
 				return;
 			}
-			
-			// Parse pipe-separated format: "timestamp - event_name | timestamp - event_name | ..."
+
+			const events = [];
+
+			// Parse pipe-separated format
 			if (cleanData.includes('|') && cleanData.includes(' - ')) {
-				const events = cleanData.split('|').map(event => event.trim()).filter(event => event.length > 0);
-				
-				if (events.length > 0) {
-					let criticalCount = 0;
-					
-					events.forEach((event, index) => {
-						const match = event.match(/^(.+?)\s+-\s+(.+)$/);
-						
-						if (match) {
-							const eventTimestamp = match[1].trim();
-							const eventName = match[2].trim();
-							
-							let isCritical = false;
-							let timeDiffSeconds = -1;
-							
-							// Calculate time difference if crash time is available
-							if (crashTime) {
-								timeDiffSeconds = calculateTimeDifferenceInSeconds(eventTimestamp, crashTime);
-								isCritical = timeDiffSeconds >= 0 && timeDiffSeconds <= 5;
-								
-								const timeDiff = calculateTimeDifference(eventTimestamp, crashTime);
-								
-								// Mark critical events with fire emoji
-								if (isCritical) {
-									message += `${index + 1}. 🔥 [${eventTimestamp}] (${timeDiff}) ${eventName} [CRITICAL]\n\n`;
-									criticalCount++;
-								} else {
-									message += `${index + 1}. ⏰ [${eventTimestamp}] (${timeDiff}) ${eventName} [STALE]\n\n`;
-								}
-							} else {
-								message += `${index + 1}. [${eventTimestamp}] ${eventName}\n\n`;
-							}
-						} else {
-							// Fallback if regex doesn't match
-							message += `${index + 1}. ${event}\n\n`;
-						}
-					});
-					
-					// Add summary
-					if (crashTime) {
-						message += `\n📊 SUMMARY: ${criticalCount} critical events (within 5s), ${events.length - criticalCount} stale events`;
+				const parts = cleanData.split('|').map(e => e.trim()).filter(e => e.length > 0);
+				for (const part of parts) {
+					const match = part.match(/^(.+?)\s+-\s+(.+)$/);
+					if (match) {
+						events.push({ name: match[2].trim(), timestamp: match[1].trim() });
 					}
-				} else {
-					message += 'No events found in breadcrumb data.\n';
 				}
-				
-				alert(message);
+			} else if (cleanData.startsWith('[') || cleanData.startsWith('{')) {
+				try {
+					const arr = JSON.parse(cleanData);
+					if (Array.isArray(arr)) {
+						for (const b of arr) {
+							const name = b.name || b.message || b.category || null;
+							if (!name) continue;
+							let ts = '';
+							if (b.timestamp) {
+								try { ts = new Date(b.timestamp).toLocaleString(); } catch(e) { ts = b.timestamp; }
+							}
+							events.push({ name, timestamp: ts });
+						}
+					}
+				} catch (e) {}
+			}
+
+			if (events.length === 0) {
+				alert('No named events found in breadcrumb data.');
 				return;
 			}
-			
-			// Try JSON parsing as fallback (in case some data is JSON)
-			if (cleanData.startsWith('[') || cleanData.startsWith('{')) {
-				try {
-					const breadcrumbs = JSON.parse(cleanData);
-					
-					if (Array.isArray(breadcrumbs) && breadcrumbs.length > 0) {
-						breadcrumbs.forEach((crumb, index) => {
-							message += `${index + 1}. `;
-							
-							if (crumb.timestamp) {
-								const eventTime = new Date(crumb.timestamp).toLocaleString();
-								message += `[${eventTime}] `;
-								if (crashTime) {
-									const timeDiff = calculateTimeDifference(crumb.timestamp, crashTime);
-									message += `(${timeDiff}) `;
-								}
-							}
-							
-							message += crumb.message || crumb.category || crumb.type || 'Unknown event';
-							message += '\n\n';
-						});
-					}
-					
-					alert(message);
-					return;
-				} catch (e) {
-					console.error('JSON parsing failed:', e);
-				}
-			}
-			
-			// Final fallback: show raw data formatted
-			message += 'Raw breadcrumb data:\n\n';
-			message += cleanData.replace(/\|/g, '\n').replace(/\s+-\s+/g, ': ');
+
+			let message = `Events Before Crash (${events.length}):\n\n`;
+			events.forEach((e, i) => {
+				message += `${i + 1}. ${e.name}`;
+				if (e.timestamp) message += `  —  ${e.timestamp}`;
+				message += '\n';
+			});
 			alert(message);
 		}
 
