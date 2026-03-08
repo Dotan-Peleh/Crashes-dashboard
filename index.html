@@ -1192,6 +1192,56 @@
 			width: 100%;
 		}
 
+		/* ===== User Cards Layout ===== */
+		.user-cards { display: flex; flex-direction: column; gap: 12px; }
+
+		.user-card {
+			background: var(--bg-surface);
+			border: 1px solid var(--border);
+			border-radius: var(--radius);
+			padding: 16px 18px;
+			transition: border-color 0.15s;
+		}
+		.user-card:hover { border-color: var(--border-light); }
+		.user-card--fatal { border-left: 3px solid var(--danger); }
+		.user-card--error { border-left: 3px solid var(--warn); }
+
+		.user-card-top {
+			display: flex; justify-content: space-between; align-items: center;
+			margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+		}
+		.user-card-id {
+			font-family: var(--font-mono); font-size: 13px; color: var(--text);
+			font-weight: 600; word-break: break-all;
+		}
+		.user-card-badges { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+		.user-card-grid {
+			display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+			gap: 10px;
+		}
+		.user-card-field {
+			font-size: 12px; line-height: 1.5;
+		}
+		.user-card-field-label {
+			color: var(--text-dim); font-size: 10px; text-transform: uppercase;
+			letter-spacing: 0.5px; font-weight: 600; margin-bottom: 2px;
+		}
+		.user-card-field-value {
+			color: var(--text); font-size: 13px;
+		}
+		.user-card-field-value strong { font-weight: 600; }
+		.user-card-field-value a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 11px; }
+		.user-card-field-value a:hover { text-decoration: underline; }
+
+		.user-card-divider {
+			border: none; border-top: 1px solid var(--border); margin: 10px 0;
+		}
+
+		.sort-controls {
+			display: flex; align-items: center; gap: 6px;
+		}
+
 		.watchdog-chart-wrap {
 			margin-bottom: 20px;
 			background: var(--bg-surface);
@@ -1200,31 +1250,6 @@
 			padding: 16px;
 		}
 
-		/* Scroll indicator for wide tables */
-		.table-scroll-wrapper {
-			position: relative;
-			overflow-x: auto;
-			-webkit-overflow-scrolling: touch;
-		}
-
-		.table-scroll-wrapper::after {
-			content: 'Scroll for more \2192';
-			position: sticky;
-			right: 0;
-			bottom: 0;
-			display: block;
-			text-align: right;
-			padding: 8px 12px;
-			font-size: 11px;
-			color: var(--text-dim);
-			font-weight: 500;
-			pointer-events: none;
-			background: linear-gradient(to right, transparent 50%, var(--bg-card));
-		}
-
-		.table-scroll-wrapper.scrolled-right::after {
-			display: none;
-		}
 
 		@media (max-width: 768px) {
 			.watchdog-kpis { grid-template-columns: repeat(2, 1fr); }
@@ -1762,40 +1787,43 @@
 			</div>
 		</div>
 
-		<div class="table-container">
-			<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+		<div class="table-container" id="highRiskSection">
+			<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
 				<h3>High Risk Users (Risk Score ≥ 75)</h3>
-				<button id="exportCsv" class="btn-secondary" onclick="exportTableToCsv()" disabled>
-					📊 Export to CSV
-				</button>
+				<div style="display: flex; gap: 8px; align-items: center;">
+					<div class="sort-controls">
+						<label style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Sort by:</label>
+						<select id="userSortSelect" onchange="handleSortChange(this.value)" style="font-size: 12px; padding: 4px 8px;">
+							<option value="risk-desc">Risk Score (High→Low)</option>
+							<option value="errors-desc">Total Errors (High→Low)</option>
+							<option value="last_24h-desc">Last 24h (High→Low)</option>
+							<option value="last_seen-desc">Last Seen (Newest)</option>
+							<option value="last_seen-asc">Last Seen (Oldest)</option>
+						</select>
+					</div>
+					<button id="exportCsv" class="btn-secondary" onclick="exportTableToCsv()" disabled>
+						📊 Export to CSV
+					</button>
+				</div>
 			</div>
 			<div id="tableLoading" class="loading">
 				<div class="spinner"></div>
 				Loading user data...
 			</div>
-			<div class="table-scroll-wrapper" id="highRiskScrollWrapper">
+			<!-- Hidden table kept for CSV export compatibility -->
 			<table id="userTable" style="display: none;">
-				<thead>
-					<tr>
-						<th data-sort="user_id">User ID <span class="sort-indicator">↕</span></th>
-						<th data-sort="platform">Platform <span class="sort-indicator">↕</span></th>
-						<th data-sort="device_model">Device <span class="sort-indicator">↕</span></th>
-						<th data-sort="app_version">App Version <span class="sort-indicator">↕</span></th>
-						<th data-sort="errors">Total Errors <span class="sort-indicator">↕</span></th>
-						<th data-sort="risk">Risk Score <span class="sort-indicator">↕</span></th>
-						<th data-sort="last_24h">Last 24h <span class="sort-indicator">↕</span></th>
-						<th data-sort="source">Data Source <span class="sort-indicator">↕</span></th>
-						<th>Crashlytics Details</th>
-						<th>Sentry Details</th>
-						<th>🔥 Critical Events (≤5s)</th>
-						<th>Error Stats</th>
-						<th data-sort="last_seen">Last Seen <span class="sort-indicator">↕</span></th>
-					</tr>
-				</thead>
-				<tbody id="userTableBody">
-				</tbody>
+				<thead><tr>
+					<th data-sort="user_id">User ID</th><th data-sort="platform">Platform</th>
+					<th data-sort="device_model">Device</th><th data-sort="app_version">App Version</th>
+					<th data-sort="errors">Total Errors</th><th data-sort="risk">Risk Score</th>
+					<th data-sort="last_24h">Last 24h</th><th data-sort="source">Data Source</th>
+					<th>Crashlytics Details</th><th>Sentry Details</th>
+					<th>Critical Events</th><th>Error Stats</th><th data-sort="last_seen">Last Seen</th>
+				</tr></thead>
+				<tbody id="userTableBody"></tbody>
 			</table>
-			</div><!-- /table-scroll-wrapper -->
+			<!-- Card-based view -->
+			<div id="userCardsContainer" style="display: none;"></div>
 		</div>
 	</div>
 
@@ -4088,7 +4116,104 @@
 			});
 
 			tableLoading.style.display = 'none';
-			table.style.display = 'table';
+			table.style.display = 'none'; // Keep table hidden, show cards instead
+
+			// Render card view
+			const cardsContainer = document.getElementById('userCardsContainer');
+			if (cardsContainer) {
+				cardsContainer.style.display = 'block';
+				cardsContainer.innerHTML = '<div class="user-cards">' + sortedUsers.map(user => {
+					const breadcrumbsPreview = user.last_5_breadcrumbs_formatted ?
+						getBreadcrumbsPreview(user.last_5_breadcrumbs_formatted, user.last_seen) : '';
+					const isCriticalEvent = breadcrumbsPreview.includes('🔥') && breadcrumbsPreview.includes('[CRITICAL]');
+
+					const crashlyticsLink = user.crashlytics_issue_id ? (() => {
+						const url = getCrashlyticsUrl(user.crashlytics_issue_id, user.platform);
+						return url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">View in Crashlytics</a>` : '';
+					})() : '';
+
+					const sentryLink = user.sentry_group_id ? (() => {
+						const url = getSentryUrl(user.sentry_group_id, user.sentry_org, user.sentry_project);
+						return url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">View in Sentry</a>` : '';
+					})() : '';
+
+					return `
+					<div class="user-card ${user.is_fatal ? 'user-card--fatal' : 'user-card--error'}">
+						<div class="user-card-top">
+							<span class="user-card-id">${user.user_id}</span>
+							<div class="user-card-badges">
+								<span class="platform-badge platform-${user.platform.toLowerCase()}">${user.platform}</span>
+								<span class="risk-badge ${getRiskBadgeClass(user.risk)}">${parseFloat(user.risk).toFixed(0)}</span>
+								${user.is_fatal ? '<span class="risk-badge risk-critical">Crash</span>' : '<span class="risk-badge risk-medium">Error</span>'}
+								${user.has_correlated_errors ? '<span class="risk-badge risk-high">Correlated</span>' : ''}
+							</div>
+						</div>
+						<div class="user-card-grid">
+							<div class="user-card-field">
+								<div class="user-card-field-label">Device</div>
+								<div class="user-card-field-value">${user.device_model || 'Unknown'}</div>
+							</div>
+							<div class="user-card-field">
+								<div class="user-card-field-label">App Version</div>
+								<div class="user-card-field-value">${user.app_display_version || 'Unknown'} (${user.app_build_version || 'N/A'})</div>
+							</div>
+							<div class="user-card-field">
+								<div class="user-card-field-label">Total Errors</div>
+								<div class="user-card-field-value"><strong>${parseInt(user.errors).toLocaleString()}</strong> &middot; Last 24h: ${parseInt(user.last_24h).toLocaleString()}</div>
+							</div>
+							<div class="user-card-field">
+								<div class="user-card-field-label">Error Rate</div>
+								<div class="user-card-field-value">${user.errors_per_hour.toFixed(2)}/h over ${user.error_duration_hours}h</div>
+							</div>
+							<div class="user-card-field">
+								<div class="user-card-field-label">Data Source</div>
+								<div class="user-card-field-value">${user.source}</div>
+							</div>
+							<div class="user-card-field">
+								<div class="user-card-field-label">Last Seen</div>
+								<div class="user-card-field-value">${new Date(user.last_seen).toLocaleString()}</div>
+							</div>
+						</div>
+						<hr class="user-card-divider">
+						<div class="user-card-grid">
+							<div class="user-card-field">
+								<div class="user-card-field-label">Crashlytics</div>
+								<div class="user-card-field-value">
+									${user.crashlytics_issue_title !== 'N/A' ? `<strong>${user.crashlytics_issue_title}</strong>` : 'N/A'}
+									${user.crashlytics_error_type !== 'N/A' ? `<br><span style="color:var(--text-dim);">${user.crashlytics_error_type}</span>` : ''}
+									${(user.avg_memory_used_mb > 0 || user.avg_memory_free_mb > 0) ? `<br><span style="color:var(--text-dim);">Memory: ${user.avg_memory_used_mb.toFixed(0)}MB used / ${user.avg_memory_free_mb.toFixed(0)}MB free</span>` : ''}
+									${crashlyticsLink ? `<br>${crashlyticsLink}` : ''}
+								</div>
+							</div>
+							<div class="user-card-field">
+								<div class="user-card-field-label">Sentry</div>
+								<div class="user-card-field-value">
+									${user.sentry_latest_error !== 'N/A' ? `<strong>${user.sentry_latest_error}</strong>` : 'N/A'}
+									${user.sentry_total_errors > 0 ? `<br><span style="color:var(--text-dim);">${user.sentry_total_errors} errors, ${user.sentry_unique_issues} unique</span>` : ''}
+									${sentryLink ? `<br>${sentryLink}` : ''}
+									<br><button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick='showSentryDetails(\`${user.top_sentry_errors_json}\`)'>Top Errors</button>
+								</div>
+							</div>
+							<div class="user-card-field">
+								<div class="user-card-field-label">Critical Events (≤5s before crash)</div>
+								<div class="user-card-field-value">
+									${breadcrumbsPreview ? `<div class="${isCriticalEvent ? 'critical-event' : ''}" style="font-size:12px;">${breadcrumbsPreview}</div>` : '<span style="color:var(--text-dim);">No events available</span>'}
+									${user.last_5_breadcrumbs_formatted ? `<button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>${isCriticalEvent ? 'View Critical Events' : 'View All Events'}</button>` : ''}
+								</div>
+							</div>
+						</div>
+					</div>`;
+				}).join('') + '</div>';
+			}
+		}
+
+		function handleSortChange(val) {
+			const [col, dir] = val.split('-');
+			userTableSort.column = col;
+			userTableSort.direction = dir;
+			if (originalUserTableData.length > 0) {
+				updateUserTable(originalUserTableData);
+			}
 		}
 
 		function getRiskBadgeClass(score) {
@@ -6499,16 +6624,6 @@
 		document.addEventListener('DOMContentLoaded', () => {
 			initializeCsvUpload();
 			updateSearchButtonState();
-			// Scroll indicator for wide tables
-			const scrollWrapper = document.getElementById('highRiskScrollWrapper');
-			if (scrollWrapper) {
-				const checkScroll = () => {
-					const atEnd = scrollWrapper.scrollLeft + scrollWrapper.clientWidth >= scrollWrapper.scrollWidth - 10;
-					scrollWrapper.classList.toggle('scrolled-right', atEnd);
-				};
-				scrollWrapper.addEventListener('scroll', checkScroll);
-				new ResizeObserver(checkScroll).observe(scrollWrapper);
-			}
 			// Keep URL in sync when typing in userIdFilter
 			const userIdInput = document.getElementById('userIdFilter');
 			if (userIdInput) {
