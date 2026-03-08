@@ -372,15 +372,7 @@ SELECT
                  REPLACE(SUBSTR(last_breadcrumbs_raw, 1, 200), '"', '\\"'), 
                  '","timestamp":"unknown","type":"breadcrumb"}]')
       END
-    ELSE 
-      -- Create sample breadcrumb data for testing when no real breadcrumbs exist
-      CASE 
-        WHEN is_fatal = TRUE AND RAND() < 0.3 THEN 
-          '[{"category":"ui","message":"Button tap","timestamp":"2025-01-01T12:00:00Z","type":"user"},{"category":"navigation","message":"Screen transition","timestamp":"2025-01-01T12:00:05Z","type":"navigation"}]'
-        WHEN is_fatal = TRUE AND RAND() < 0.6 THEN
-          '[{"category":"network","message":"API call failed","timestamp":"2025-01-01T12:00:00Z","type":"http"},{"category":"state","message":"Memory warning","timestamp":"2025-01-01T12:00:03Z","type":"system"}]'
-        ELSE NULL
-      END
+    ELSE NULL
   END AS last_5_breadcrumbs_formatted
 
 FROM final_results
