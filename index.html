@@ -1738,6 +1738,60 @@
 				</tbody>
 			</table>
 		</div>
+		<!-- Watchdog Terminations Aggregate Section -->
+		<div class="table-container" id="watchdogSection" style="display: none; border-left: 4px solid #e74c3c;">
+			<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+				<h3 style="margin: 0;">⚠️ OS Watchdog Terminations (Aggregate — No Player ID Available)</h3>
+				<span style="background: #fff3cd; color: #856404; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;">Estimated Data</span>
+			</div>
+			<p style="color: #666; font-size: 13px; margin: 0 0 15px 0;">
+				WatchdogTermination events are captured by the native iOS Sentry SDK, which does not have access to the game's player ID.
+				These stats are shown at aggregate level only.
+			</p>
+			<!-- KPI Row -->
+			<div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+				<div style="flex: 1; min-width: 140px; background: #fef2f2; border-radius: 8px; padding: 15px; text-align: center;">
+					<div style="font-size: 24px; font-weight: 700; color: #dc2626;" id="watchdogTotalEvents">-</div>
+					<div style="font-size: 12px; color: #666;">Total Events (7d)</div>
+				</div>
+				<div style="flex: 1; min-width: 140px; background: #fef2f2; border-radius: 8px; padding: 15px; text-align: center;">
+					<div style="font-size: 24px; font-weight: 700; color: #dc2626;" id="watchdogUniqueDevices">-</div>
+					<div style="font-size: 12px; color: #666;">Unique Devices</div>
+				</div>
+				<div style="flex: 1; min-width: 140px; background: #fff7ed; border-radius: 8px; padding: 15px; text-align: center;">
+					<div style="font-size: 24px; font-weight: 700; color: #ea580c;" id="watchdogEventsToday">-</div>
+					<div style="font-size: 12px; color: #666;">Events Today</div>
+				</div>
+				<div style="flex: 1; min-width: 140px; background: #fff7ed; border-radius: 8px; padding: 15px; text-align: center;">
+					<div style="font-size: 24px; font-weight: 700; color: #ea580c;" id="watchdogAvgPerDevice">-</div>
+					<div style="font-size: 12px; color: #666;">Avg per Device</div>
+				</div>
+			</div>
+			<!-- Daily Trend Table -->
+			<h4 style="margin: 0 0 8px 0; font-size: 14px;">Daily Trend</h4>
+			<table id="watchdogTrendTable" style="width: 100%; margin-bottom: 20px;">
+				<thead>
+					<tr>
+						<th>Date</th>
+						<th>Events</th>
+						<th>Unique Devices</th>
+					</tr>
+				</thead>
+				<tbody id="watchdogTrendBody"></tbody>
+			</table>
+			<!-- Top Sentry Error Titles -->
+			<h4 style="margin: 0 0 8px 0; font-size: 14px;">Top Watchdog-Related Errors</h4>
+			<table id="watchdogErrorsTable" style="width: 100%;">
+				<thead>
+					<tr>
+						<th>Error Title</th>
+						<th>Events</th>
+						<th>Devices</th>
+					</tr>
+				</thead>
+				<tbody id="watchdogErrorsBody"></tbody>
+			</table>
+		</div>
 	</div>
 
 	<!-- Auth Modal -->
@@ -3513,7 +3567,10 @@
 					originalUserTableData = [];
 					updateMetrics(metrics);
 				}
-				
+
+				// Fetch watchdog aggregate stats (non-blocking)
+				fetchWatchdogStats().catch(e => console.warn('Watchdog stats failed:', e));
+
 				const now = new Date();
 				lastUpdated.textContent = `Last updated: ${now.toLocaleTimeString()} ${now.toLocaleDateString()}`;
 
@@ -3544,6 +3601,90 @@
 				loadingOverlay.classList.remove('show');
 				metricCards.forEach(card => card.classList.remove('loading'));
 			}
+		}
+
+		async function fetchWatchdogStats() {
+			const baseTable = `\`${CONFIG.PROJECT_ID}.${CONFIG.DATASET_ID}.sentry_errors\``;
+			const query = `
+				WITH watchdog AS (
+					SELECT
+						user_id,
+						title,
+						timestamp,
+						DATE(timestamp) AS event_date
+					FROM ${baseTable}
+					WHERE (title LIKE '%WatchdogTermination%' OR title LIKE '%watchdog%')
+						AND DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+						AND platform IN ('cocoa', 'native')
+				)
+				SELECT
+					(SELECT COUNT(*) FROM watchdog) AS total_events,
+					(SELECT COUNT(DISTINCT user_id) FROM watchdog) AS unique_devices,
+					(SELECT COUNT(*) FROM watchdog WHERE event_date = CURRENT_DATE()) AS events_today,
+					(SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(event_date, events, devices) ORDER BY event_date DESC))
+					 FROM (
+						SELECT event_date, COUNT(*) AS events, COUNT(DISTINCT user_id) AS devices
+						FROM watchdog GROUP BY event_date
+					 )
+					) AS daily_trend_json,
+					(SELECT TO_JSON_STRING(ARRAY_AGG(STRUCT(title, events, devices) ORDER BY events DESC))
+					 FROM (
+						SELECT title, COUNT(*) AS events, COUNT(DISTINCT user_id) AS devices
+						FROM watchdog GROUP BY title ORDER BY events DESC LIMIT 10
+					 )
+					) AS errors_json
+			`;
+
+			const result = await executeBigQuery(query);
+			const section = document.getElementById('watchdogSection');
+
+			if (!result.rows || result.rows.length === 0) {
+				section.style.display = 'none';
+				return;
+			}
+
+			const row = result.rows[0].f;
+			const totalEvents = parseInt(row[0]?.v) || 0;
+			const uniqueDevices = parseInt(row[1]?.v) || 0;
+			const eventsToday = parseInt(row[2]?.v) || 0;
+			const avgPerDevice = uniqueDevices > 0 ? (totalEvents / uniqueDevices).toFixed(1) : '0';
+
+			if (totalEvents === 0) {
+				section.style.display = 'none';
+				return;
+			}
+
+			section.style.display = 'block';
+			document.getElementById('watchdogTotalEvents').textContent = totalEvents.toLocaleString();
+			document.getElementById('watchdogUniqueDevices').textContent = uniqueDevices.toLocaleString();
+			document.getElementById('watchdogEventsToday').textContent = eventsToday.toLocaleString();
+			document.getElementById('watchdogAvgPerDevice').textContent = avgPerDevice;
+
+			// Daily trend table
+			try {
+				const dailyTrend = JSON.parse(row[3]?.v || '[]');
+				const trendBody = document.getElementById('watchdogTrendBody');
+				trendBody.innerHTML = dailyTrend.map(d => `
+					<tr>
+						<td>${d.event_date}</td>
+						<td>${parseInt(d.events).toLocaleString()}</td>
+						<td>${parseInt(d.devices).toLocaleString()}</td>
+					</tr>
+				`).join('');
+			} catch (e) { console.warn('Watchdog trend parse error:', e); }
+
+			// Errors table
+			try {
+				const errors = JSON.parse(row[4]?.v || '[]');
+				const errorsBody = document.getElementById('watchdogErrorsBody');
+				errorsBody.innerHTML = errors.map(d => `
+					<tr>
+						<td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${d.title}</td>
+						<td>${parseInt(d.events).toLocaleString()}</td>
+						<td>${parseInt(d.devices).toLocaleString()}</td>
+					</tr>
+				`).join('');
+			} catch (e) { console.warn('Watchdog errors parse error:', e); }
 		}
 
 		async function updateMetrics(data) {

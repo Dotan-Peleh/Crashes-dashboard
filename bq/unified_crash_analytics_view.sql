@@ -33,13 +33,8 @@ WITH crashlytics_base AS (
     REGEXP_EXTRACT(issue_title, r'^([^:]+)') AS error_class,
     -- Collect all timestamps for this user/issue combination
     ARRAY_AGG(event_timestamp ORDER BY event_timestamp DESC) AS crashlytics_timestamps,
-    -- Get breadcrumb data (try common field names)
-    COALESCE(
-      ARRAY_AGG(breadcrumbs IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)],
-      ARRAY_AGG(last_5_breadcrumbs_formatted IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)],
-      ARRAY_AGG(breadcrumb_data IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)],
-      ARRAY_AGG(custom_data IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)]
-    ) AS last_breadcrumbs_raw
+    -- Get breadcrumb data
+    ARRAY_AGG(TO_JSON_STRING(breadcrumbs) IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)] AS last_breadcrumbs_raw
   FROM `yotam-395120.peerplay.firebase_crashlytics_realtime_flattened`
   WHERE platform IN ('IOS', 'ANDROID')  -- Both platforms
     AND event_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
@@ -121,7 +116,9 @@ sentry_enrichment AS (
     -- Platform info - capture all platforms this user has errors on
     STRING_AGG(DISTINCT platform) AS sentry_platforms,
     -- Determine primary platform from Sentry
-    ARRAY_AGG(platform ORDER BY timestamp DESC LIMIT 1)[SAFE_OFFSET(0)] AS sentry_primary_platform
+    ARRAY_AGG(platform ORDER BY timestamp DESC LIMIT 1)[SAFE_OFFSET(0)] AS sentry_primary_platform,
+    -- Whether any fatal-level event exists for this user
+    LOGICAL_OR(level = 'fatal') AS sentry_has_fatal
   FROM `yotam-395120.peerplay.sentry_errors`
   WHERE DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
     AND platform IN (
@@ -186,7 +183,7 @@ unified_data AS (
     c.issue_title AS crashlytics_issue_title,
     c.issue_subtitle AS crashlytics_issue_subtitle,
     c.error_type AS crashlytics_error_type,
-    c.is_fatal,
+    COALESCE(c.is_fatal, s.sentry_has_fatal) AS is_fatal,
     c.process_state,
     c.avg_memory_used,
     c.avg_memory_free,
@@ -242,17 +239,14 @@ unified_data AS (
     
     -- User risk score (0-100)
     CASE
-      WHEN c.is_fatal = TRUE THEN 100
+      WHEN COALESCE(c.is_fatal, s.sentry_has_fatal) = TRUE THEN 100
       WHEN COALESCE(c.crashlytics_event_count, 0) + COALESCE(s.sentry_total_errors, 0) > 100 THEN 90
       WHEN COALESCE(c.crashlytics_event_count, 0) + COALESCE(s.sentry_total_errors, 0) > 50 THEN 75
       WHEN COALESCE(c.crashlytics_event_count, 0) + COALESCE(s.sentry_total_errors, 0) > 20 THEN 50
       WHEN COALESCE(c.crashlytics_event_count, 0) + COALESCE(s.sentry_total_errors, 0) > 10 THEN 30
       ELSE 10
-    END AS user_risk_score,
-    
-    -- Include breadcrumb data
-    c.last_breadcrumbs_raw
-    
+    END AS user_risk_score
+
   FROM crashlytics_base c
   FULL OUTER JOIN sentry_enrichment s
     ON c.distinct_id = s.distinct_id
@@ -364,9 +358,11 @@ SELECT
   CASE 
     WHEN last_breadcrumbs_raw IS NOT NULL THEN 
       CASE 
-        -- If it's already JSON, extract and format the last 5 breadcrumbs
+        -- If it's already JSON array, take first 5 elements
         WHEN JSON_EXTRACT_SCALAR(last_breadcrumbs_raw, '$[0].timestamp') IS NOT NULL THEN
-          TO_JSON_STRING(JSON_EXTRACT_ARRAY(last_breadcrumbs_raw, '$[0:5]'))
+          TO_JSON_STRING(ARRAY(
+            SELECT e FROM UNNEST(JSON_EXTRACT_ARRAY(last_breadcrumbs_raw)) AS e WITH OFFSET o WHERE o < 5 ORDER BY o
+          ))
         -- If it's a simple array, format it
         WHEN STARTS_WITH(TRIM(last_breadcrumbs_raw), '[') THEN 
           last_breadcrumbs_raw
