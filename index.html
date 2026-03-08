@@ -1203,8 +1203,8 @@
 			transition: border-color 0.15s;
 		}
 		.user-card:hover { border-color: var(--border-light); }
-		.user-card--fatal { border-left: 3px solid var(--danger); }
-		.user-card--error { border-left: 3px solid var(--warn); }
+		.user-card--fatal { border-left: 4px solid var(--danger); background: linear-gradient(135deg, var(--bg-surface) 0%, #fef8f8 100%); }
+		.user-card--error { border-left: 4px solid var(--warn); }
 
 		.user-card-top {
 			display: flex; justify-content: space-between; align-items: center;
@@ -1220,6 +1220,12 @@
 			display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 			gap: 10px;
 		}
+		.user-card-grid--details {
+			grid-template-columns: 1fr 1fr 1fr;
+		}
+		@media (max-width: 900px) {
+			.user-card-grid--details { grid-template-columns: 1fr; }
+		}
 		.user-card-field {
 			font-size: 12px; line-height: 1.5;
 		}
@@ -1229,10 +1235,32 @@
 		}
 		.user-card-field-value {
 			color: var(--text); font-size: 13px;
+			word-break: break-word; overflow-wrap: break-word;
+			min-width: 0;
 		}
 		.user-card-field-value strong { font-weight: 600; }
 		.user-card-field-value a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 11px; }
 		.user-card-field-value a:hover { text-decoration: underline; }
+
+		/* Critical event callout inside cards */
+		.user-card-critical-banner {
+			background: linear-gradient(135deg, #fef2f2, #fee2e2);
+			border: 1px solid #fca5a5;
+			border-radius: var(--radius-sm);
+			padding: 8px 12px;
+			margin-top: 4px;
+			font-size: 12px;
+			color: #991b1b;
+			font-weight: 600;
+			animation: critical-pulse 2s ease-in-out infinite;
+		}
+		@keyframes critical-pulse {
+			0%, 100% { box-shadow: 0 0 0 0 rgba(220,53,69,0); }
+			50% { box-shadow: 0 0 0 4px rgba(220,53,69,0.1); }
+		}
+		.user-card-nocritical {
+			color: var(--text-dim); font-size: 12px; font-style: italic;
+		}
 
 		.user-card-divider {
 			border: none; border-top: 1px solid var(--border); margin: 10px 0;
@@ -4174,31 +4202,37 @@
 								<div class="user-card-field-value">${new Date(user.last_seen).toLocaleString()}</div>
 							</div>
 						</div>
+						${isCriticalEvent ? `
+						<div class="user-card-critical-banner">
+							🔥 Critical event detected within 5s of crash — ${breadcrumbsPreview.replace(/<[^>]+>/g, '')}
+						</div>` : ''}
 						<hr class="user-card-divider">
-						<div class="user-card-grid">
+						<div class="user-card-grid user-card-grid--details">
 							<div class="user-card-field">
 								<div class="user-card-field-label">Crashlytics</div>
 								<div class="user-card-field-value">
-									${user.crashlytics_issue_title !== 'N/A' ? `<strong>${user.crashlytics_issue_title}</strong>` : 'N/A'}
-									${user.crashlytics_error_type !== 'N/A' ? `<br><span style="color:var(--text-dim);">${user.crashlytics_error_type}</span>` : ''}
-									${(user.avg_memory_used_mb > 0 || user.avg_memory_free_mb > 0) ? `<br><span style="color:var(--text-dim);">Memory: ${user.avg_memory_used_mb.toFixed(0)}MB used / ${user.avg_memory_free_mb.toFixed(0)}MB free</span>` : ''}
+									${user.crashlytics_issue_title !== 'N/A' ? `<strong>${user.crashlytics_issue_title}</strong>` : '<span class="user-card-nocritical">N/A</span>'}
+									${user.crashlytics_error_type !== 'N/A' ? `<br><span style="color:var(--text-dim);font-size:11px;">${user.crashlytics_error_type}</span>` : ''}
+									${(user.avg_memory_used_mb > 0 || user.avg_memory_free_mb > 0) ? `<br><span style="color:var(--text-dim);font-size:11px;">Memory: ${user.avg_memory_used_mb.toFixed(0)}MB / ${user.avg_memory_free_mb.toFixed(0)}MB free</span>` : ''}
 									${crashlyticsLink ? `<br>${crashlyticsLink}` : ''}
 								</div>
 							</div>
 							<div class="user-card-field">
 								<div class="user-card-field-label">Sentry</div>
 								<div class="user-card-field-value">
-									${user.sentry_latest_error !== 'N/A' ? `<strong>${user.sentry_latest_error}</strong>` : 'N/A'}
-									${user.sentry_total_errors > 0 ? `<br><span style="color:var(--text-dim);">${user.sentry_total_errors} errors, ${user.sentry_unique_issues} unique</span>` : ''}
+									${user.sentry_latest_error !== 'N/A' ? `<strong>${user.sentry_latest_error}</strong>` : '<span class="user-card-nocritical">N/A</span>'}
+									${user.sentry_total_errors > 0 ? `<br><span style="color:var(--text-dim);font-size:11px;">${user.sentry_total_errors} errors, ${user.sentry_unique_issues} unique</span>` : ''}
 									${sentryLink ? `<br>${sentryLink}` : ''}
 									<br><button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick='showSentryDetails(\`${user.top_sentry_errors_json}\`)'>Top Errors</button>
 								</div>
 							</div>
 							<div class="user-card-field">
-								<div class="user-card-field-label">Critical Events (≤5s before crash)</div>
+								<div class="user-card-field-label">Events before crash</div>
 								<div class="user-card-field-value">
-									${breadcrumbsPreview ? `<div class="${isCriticalEvent ? 'critical-event' : ''}" style="font-size:12px;">${breadcrumbsPreview}</div>` : '<span style="color:var(--text-dim);">No events available</span>'}
-									${user.last_5_breadcrumbs_formatted ? `<button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>${isCriticalEvent ? 'View Critical Events' : 'View All Events'}</button>` : ''}
+									${!isCriticalEvent && breadcrumbsPreview ? `<div style="font-size:12px;">${breadcrumbsPreview}</div>` : ''}
+									${!isCriticalEvent && !breadcrumbsPreview ? '<span class="user-card-nocritical">No events recorded</span>' : ''}
+									${isCriticalEvent ? '<span style="color:var(--danger);font-weight:600;font-size:12px;">See banner above</span>' : ''}
+									${user.last_5_breadcrumbs_formatted ? `<br><button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>${isCriticalEvent ? '🔥 View Critical Events' : 'View All Events'}</button>` : ''}
 								</div>
 							</div>
 						</div>
