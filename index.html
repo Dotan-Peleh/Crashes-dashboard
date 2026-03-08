@@ -4029,11 +4029,15 @@
 			// Render sorted users
 			sortedUsers.forEach(user => {
 				const row = tbody.insertRow();
-				
+
+				// Store breadcrumb data for popup access
+				const bcIdx = breadcrumbStore.size;
+				if (user.last_5_breadcrumbs_formatted) breadcrumbStore.set(bcIdx, { data: user.last_5_breadcrumbs_formatted, crashTime: user.last_seen });
+
 				// Process breadcrumb data to show a preview with timing info
-				const breadcrumbsPreview = user.last_5_breadcrumbs_formatted ? 
+				const breadcrumbsPreview = user.last_5_breadcrumbs_formatted ?
 					getBreadcrumbsPreview(user.last_5_breadcrumbs_formatted, user.last_seen) : 'No breadcrumb data';
-				
+
 				// Determine if this event is critical (within 2s) for styling
 				const isCriticalEvent = breadcrumbsPreview.includes('🔥') && breadcrumbsPreview.includes('[CRITICAL]');
 				const isStaleEvent = breadcrumbsPreview.includes('⏰');
