@@ -3948,8 +3948,10 @@
 			direction: 'desc'
 		};
 		let originalUserTableData = []; // Store the original filtered data
+		const breadcrumbStore = new Map(); // Store breadcrumb data by index to avoid onclick escaping issues
 
 		function updateUserTable(users) {
+			breadcrumbStore.clear();
 			const tbody = document.getElementById('userTableBody');
 			const table = document.getElementById('userTable');
 			const tableLoading = document.getElementById('tableLoading');
@@ -4125,8 +4127,8 @@
 							<strong>Crash Time:</strong> ${new Date(user.last_seen).toLocaleTimeString()}
 						</div>
 						${user.last_5_breadcrumbs_formatted ? `
-							<button class="btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-top: 2px;" 
-								onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>
+							<button class="btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-top: 2px;"
+								onclick="showBreadcrumbFromStore(${bcIdx})">
 								📋 View All Events
 							</button>
 						` : '<small style="color: #999;">No events available</small>'}
@@ -4155,6 +4157,9 @@
 						getBreadcrumbsPreview(user.last_5_breadcrumbs_formatted, user.last_seen) : '';
 					const isCriticalEvent = breadcrumbsPreview.includes('🔥') && breadcrumbsPreview.includes('[CRITICAL]');
 					const criticalEvents = getCriticalBreadcrumbs(user.last_5_breadcrumbs_formatted, user.last_seen);
+					// Store breadcrumb data by index for popup access (avoids onclick escaping issues)
+					const bcIdx = breadcrumbStore.size;
+					if (user.last_5_breadcrumbs_formatted) breadcrumbStore.set(bcIdx, { data: user.last_5_breadcrumbs_formatted, crashTime: user.last_seen });
 
 					const crashlyticsLink = user.crashlytics_issue_id ? (() => {
 						const url = getCrashlyticsUrl(user.crashlytics_issue_id, user.platform);
@@ -4234,7 +4239,7 @@
 									${criticalEvents.length > 0 ? criticalEvents.map((e, i) =>
 										`<div style="margin-bottom:3px;font-family:var(--font-mono);font-size:12px;"><span style="color:var(--text-dim);">${i+1}.</span> <span style="color:var(--danger);font-weight:600;">${e.name}</span> <span style="color:var(--text-dim);font-size:11px;">${e.timeDiff || ''}</span></div>`
 									).join('') : (breadcrumbsPreview ? `<div style="font-size:12px;">${breadcrumbsPreview}</div>` : '<span class="user-card-nocritical">No events recorded</span>')}
-									${user.last_5_breadcrumbs_formatted && user.last_5_breadcrumbs_formatted !== 'null' ? `<button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>📋 View All Events</button>` : '<span style="color:var(--text-dim);font-size:11px;">No Crashlytics events</span>'}
+									${user.last_5_breadcrumbs_formatted && user.last_5_breadcrumbs_formatted !== 'null' ? `<button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick="showBreadcrumbFromStore(${bcIdx})">📋 View All Events</button>` : '<span style="color:var(--text-dim);font-size:11px;">No Crashlytics events</span>'}
 								</div>
 							</div>
 						</div>
@@ -5691,7 +5696,7 @@
 							// Handle double-encoded JSON (array of JSON strings from BQ)
 							if (typeof b === 'string') { try { b = JSON.parse(b); } catch(e) { continue; } }
 							const name = b.name || b.message || b.category || null;
-							if (!name || name === 'Unknown') continue;
+							if (!name || name === 'Unknown' || name.startsWith('_')) continue; // skip internal Firebase events
 							const ts = b.timestamp || '';
 							let formattedTs = '';
 							if (ts) {
@@ -5766,7 +5771,14 @@
 			return cleanData.substring(0, 50) + (cleanData.length > 50 ? '...' : '');
 		}
 
-		// Function to show detailed breadcrumb information - handles pipe-separated format
+		// Wrapper that reads from breadcrumbStore (avoids onclick escaping issues)
+		function showBreadcrumbFromStore(idx) {
+			const entry = breadcrumbStore.get(idx);
+			if (!entry) { alert('No breadcrumb data available.'); return; }
+			showBreadcrumbDetails(entry.data, entry.crashTime);
+		}
+
+		// Function to show detailed breadcrumb information
 		function showBreadcrumbDetails(breadcrumbsData, crashTime = null) {
 			if (!breadcrumbsData || breadcrumbsData.trim() === '' || breadcrumbsData === 'null') {
 				alert('No breadcrumb data available for this user.');
@@ -5787,7 +5799,8 @@
 				for (const part of parts) {
 					const match = part.match(/^(.+?)\s+-\s+(.+)$/);
 					if (match) {
-						events.push({ name: match[2].trim(), timestamp: match[1].trim() });
+						const name = match[2].trim();
+						if (!name.startsWith('_')) events.push({ name, timestamp: match[1].trim() });
 					}
 				}
 			} else if (cleanData.startsWith('[') || cleanData.startsWith('{')) {
@@ -5798,7 +5811,7 @@
 							// Handle double-encoded JSON (array of JSON strings from BQ)
 							if (typeof item === 'string') { try { item = JSON.parse(item); } catch(e) { continue; } }
 							const name = item.name || item.message || item.category || null;
-							if (!name) continue;
+							if (!name || name.startsWith('_')) continue; // skip Firebase internal events
 							let ts = '';
 							if (item.timestamp) {
 								try { ts = new Date(item.timestamp).toLocaleString(); } catch(e) { ts = item.timestamp; }
@@ -5810,7 +5823,7 @@
 			}
 
 			if (events.length === 0) {
-				alert('No named events found in breadcrumb data.');
+				alert('No user events found in breadcrumb data.');
 				return;
 			}
 
