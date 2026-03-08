@@ -4203,11 +4203,23 @@
 								<div class="user-card-field-value">${new Date(user.last_seen).toLocaleString()}</div>
 							</div>
 						</div>
-						${criticalEvents.length > 0 ? `
-						<div class="user-card-critical-banner">
-							🔥 ${criticalEvents.length} event${criticalEvents.length > 1 ? 's' : ''} within 5s of crash:
-							${criticalEvents.map(e => `<div style="margin-top:4px;"><strong>${e.name}</strong> <span style="opacity:0.7;font-size:11px;">${e.timeDiff ? '(' + e.timeDiff + ')' : ''}</span></div>`).join('')}
-						</div>` : ''}
+						${(() => {
+						const knownEvents = criticalEvents.filter(e => e.name !== 'Unknown');
+						const unknownCount = criticalEvents.length - knownEvents.length;
+						if (criticalEvents.length === 0) return '';
+						if (knownEvents.length > 0) {
+							return `<div class="user-card-critical-banner">
+								🔥 ${knownEvents.length} event${knownEvents.length > 1 ? 's' : ''} within 5s of crash:
+								${knownEvents.map(e => `<div style="margin-top:4px;"><strong>${e.name}</strong> <span style="opacity:0.7;font-size:11px;">${e.timeDiff ? '(' + e.timeDiff + ')' : ''}</span></div>`).join('')}
+								${unknownCount > 0 ? `<div style="margin-top:4px;color:var(--text-dim);font-size:12px;">+ ${unknownCount} more Crashlytics event${unknownCount > 1 ? 's' : ''}</div>` : ''}
+							</div>`;
+						} else {
+							return `<div class="user-card-critical-banner">
+								🔥 ${unknownCount} Crashlytics event${unknownCount > 1 ? 's' : ''} detected near crash
+								<div style="margin-top:4px;color:var(--text-dim);font-size:12px;">Click "View All Events" for details</div>
+							</div>`;
+						}
+					})()}
 						<hr class="user-card-divider">
 						<div class="user-card-grid user-card-grid--details">
 							<div class="user-card-field">
@@ -4231,11 +4243,21 @@
 							<div class="user-card-field">
 								<div class="user-card-field-label">Events before crash</div>
 								<div class="user-card-field-value">
-									${criticalEvents.length > 0 ? criticalEvents.map(e =>
-										`<div style="margin-bottom:3px;"><span style="color:var(--danger);font-weight:600;">🔥 ${e.name}</span> <span style="color:var(--text-dim);font-size:11px;">${e.timeDiff || ''}</span></div>`
-									).join('') : ''}
-									${criticalEvents.length === 0 && breadcrumbsPreview ? `<div style="font-size:12px;">${breadcrumbsPreview}</div>` : ''}
-									${criticalEvents.length === 0 && !breadcrumbsPreview ? '<span class="user-card-nocritical">No events recorded</span>' : ''}
+									${(() => {
+									const known = criticalEvents.filter(e => e.name !== 'Unknown');
+									const unkCount = criticalEvents.length - known.length;
+									if (known.length > 0) {
+										return known.map(e =>
+											`<div style="margin-bottom:3px;"><span style="color:var(--danger);font-weight:600;">🔥 ${e.name}</span> <span style="color:var(--text-dim);font-size:11px;">${e.timeDiff || ''}</span></div>`
+										).join('') + (unkCount > 0 ? `<div style="margin-bottom:3px;color:var(--text-dim);font-size:11px;">+ ${unkCount} more event${unkCount > 1 ? 's' : ''}</div>` : '');
+									} else if (unkCount > 0) {
+										return `<div style="margin-bottom:3px;"><span style="color:var(--warn);font-weight:600;">🔥 ${unkCount} Crashlytics event${unkCount > 1 ? 's' : ''} detected</span></div>`;
+									} else if (breadcrumbsPreview) {
+										return `<div style="font-size:12px;">${breadcrumbsPreview}</div>`;
+									} else {
+										return '<span class="user-card-nocritical">No events recorded</span>';
+									}
+								})()}
 									${user.last_5_breadcrumbs_formatted ? `<button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>View All 5 Events</button>` : ''}
 								</div>
 							</div>
