@@ -4154,6 +4154,7 @@
 					const breadcrumbsPreview = user.last_5_breadcrumbs_formatted ?
 						getBreadcrumbsPreview(user.last_5_breadcrumbs_formatted, user.last_seen) : '';
 					const isCriticalEvent = breadcrumbsPreview.includes('🔥') && breadcrumbsPreview.includes('[CRITICAL]');
+					const criticalEvents = getCriticalBreadcrumbs(user.last_5_breadcrumbs_formatted, user.last_seen);
 
 					const crashlyticsLink = user.crashlytics_issue_id ? (() => {
 						const url = getCrashlyticsUrl(user.crashlytics_issue_id, user.platform);
@@ -4202,9 +4203,10 @@
 								<div class="user-card-field-value">${new Date(user.last_seen).toLocaleString()}</div>
 							</div>
 						</div>
-						${isCriticalEvent ? `
+						${criticalEvents.length > 0 ? `
 						<div class="user-card-critical-banner">
-							🔥 Critical event detected within 5s of crash — ${breadcrumbsPreview.replace(/<[^>]+>/g, '')}
+							🔥 ${criticalEvents.length} event${criticalEvents.length > 1 ? 's' : ''} within 5s of crash:
+							${criticalEvents.map(e => `<div style="margin-top:4px;"><strong>${e.name}</strong> <span style="opacity:0.7;font-size:11px;">${e.timeDiff ? '(' + e.timeDiff + ')' : ''}</span></div>`).join('')}
 						</div>` : ''}
 						<hr class="user-card-divider">
 						<div class="user-card-grid user-card-grid--details">
@@ -4229,10 +4231,12 @@
 							<div class="user-card-field">
 								<div class="user-card-field-label">Events before crash</div>
 								<div class="user-card-field-value">
-									${!isCriticalEvent && breadcrumbsPreview ? `<div style="font-size:12px;">${breadcrumbsPreview}</div>` : ''}
-									${!isCriticalEvent && !breadcrumbsPreview ? '<span class="user-card-nocritical">No events recorded</span>' : ''}
-									${isCriticalEvent ? '<span style="color:var(--danger);font-weight:600;font-size:12px;">See banner above</span>' : ''}
-									${user.last_5_breadcrumbs_formatted ? `<br><button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>${isCriticalEvent ? '🔥 View Critical Events' : 'View All Events'}</button>` : ''}
+									${criticalEvents.length > 0 ? criticalEvents.map(e =>
+										`<div style="margin-bottom:3px;"><span style="color:var(--danger);font-weight:600;">🔥 ${e.name}</span> <span style="color:var(--text-dim);font-size:11px;">${e.timeDiff || ''}</span></div>`
+									).join('') : ''}
+									${criticalEvents.length === 0 && breadcrumbsPreview ? `<div style="font-size:12px;">${breadcrumbsPreview}</div>` : ''}
+									${criticalEvents.length === 0 && !breadcrumbsPreview ? '<span class="user-card-nocritical">No events recorded</span>' : ''}
+									${user.last_5_breadcrumbs_formatted ? `<button class="btn-secondary" style="padding:2px 8px;font-size:10px;margin-top:4px;" onclick='showBreadcrumbDetails(\`${user.last_5_breadcrumbs_formatted.replace(/`/g, '\\`')}\`, "${user.last_seen}")'>View All 5 Events</button>` : ''}
 								</div>
 							</div>
 						</div>
@@ -5661,6 +5665,39 @@
 		}
 
 		// Function to get breadcrumb preview (first event) - only shows critical events within 2s
+		// Get ALL critical breadcrumb events (≤5s before crash) for inline display in cards
+		function getCriticalBreadcrumbs(breadcrumbsData, crashTime) {
+			if (!breadcrumbsData || !crashTime || breadcrumbsData.trim() === '' || breadcrumbsData === 'null') return [];
+			const cleanData = breadcrumbsData.trim();
+			const results = [];
+
+			if (cleanData.includes('|') && cleanData.includes(' - ')) {
+				const events = cleanData.split('|').map(e => e.trim()).filter(e => e.length > 0);
+				for (const event of events) {
+					const match = event.match(/^(.+?)\s+-\s+(.+)$/);
+					if (match) {
+						const ts = match[1].trim();
+						const name = match[2].trim();
+						const diff = calculateTimeDifferenceInSeconds(ts, crashTime);
+						if (diff >= 0 && diff <= 5) {
+							results.push({ name, timestamp: ts, diffSeconds: diff, timeDiff: calculateTimeDifference(ts, crashTime) });
+						}
+					}
+				}
+			} else if (cleanData.startsWith('[') || cleanData.startsWith('{')) {
+				try {
+					const arr = JSON.parse(cleanData);
+					if (Array.isArray(arr)) {
+						for (const b of arr) {
+							const name = b.message || b.category || b.type || 'Unknown';
+							results.push({ name, timestamp: b.timestamp || '', diffSeconds: 0, timeDiff: '' });
+						}
+					}
+				} catch (e) {}
+			}
+			return results;
+		}
+
 		function getBreadcrumbsPreview(breadcrumbsData, crashTime = null) {
 			if (!breadcrumbsData || breadcrumbsData.trim() === '' || breadcrumbsData === 'null' || breadcrumbsData === 'undefined') {
 				return 'No breadcrumb data';
