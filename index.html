@@ -1395,74 +1395,87 @@
 
 		/* Responsive */
 		@media (max-width: 768px) {
-			body { padding: 12px; }
-			.header { flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; }
+			body { padding: 10px; }
+			.dashboard { max-width: 100%; }
+			.header { flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px; }
 			.header-content h1 { font-size: 20px; }
-			.header-actions { width: 100%; flex-direction: column; gap: 8px; }
-			.header-actions .btn-primary, .header-actions .btn-secondary { width: 100%; justify-content: center; }
+			.header-actions { width: 100%; flex-direction: row; flex-wrap: wrap; gap: 8px; }
+			.header-actions .btn-primary, .header-actions .btn-secondary { flex: 1; min-width: 0; justify-content: center; }
 			.controls { padding: 14px; }
 			.controls-header { flex-direction: column; align-items: flex-start; gap: 12px; }
 			.filters { flex-direction: column; gap: 12px; }
 			.filter-group, .multi-select, .date-range-container { width: 100%; }
 			.date-range-type { flex-wrap: wrap; }
-			.metrics { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-			.metric-card { padding: 16px; }
-			.metric-value { font-size: 24px; }
-			.csv-analysis-section { padding: 16px; }
+			.metrics { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+			.metric-card { padding: 14px 12px; border-top-width: 2px; }
+			.metric-label { font-size: 9px; margin-bottom: 4px; }
+			.metric-value { font-size: 26px; }
+			.metric-subtitle { font-size: 10px; }
+			.csv-analysis-section { padding: 14px; }
 			.csv-upload-controls { flex-direction: column; gap: 8px; }
 			.csv-upload-controls .btn-primary, .csv-upload-controls .btn-secondary { width: 100%; }
 			.file-upload-wrapper { width: 100%; flex-direction: column; align-items: stretch; }
 			.csv-results-header { flex-direction: column; align-items: flex-start; gap: 12px; }
-			.csv-summary-stats { grid-template-columns: 1fr; }
-			.charts { grid-template-columns: 1fr; gap: 12px; }
-			.chart-container { padding: 16px; margin-bottom: 12px; }
-			.table-container { padding: 14px; -webkit-overflow-scrolling: touch; }
-			table { min-width: 600px; }
-			th, td { padding: 8px; font-size: 11px; }
-			.search-results-btn { width: 100%; margin-bottom: 16px; }
+			.csv-summary-stats { grid-template-columns: repeat(2, 1fr); }
+			.charts { grid-template-columns: 1fr; gap: 10px; }
+			.chart-container { padding: 14px; margin-bottom: 10px; }
+			.chart-container h3 { font-size: 14px; }
+			.chart-container h3::after { display: none; }
+			.table-container { padding: 12px; -webkit-overflow-scrolling: touch; }
+			table { min-width: 500px; }
+			th, td { padding: 8px 6px; font-size: 11px; }
+			.search-results-btn { width: 100%; margin-bottom: 14px; }
 			/* User cards responsive */
 			.user-card { padding: 14px; }
-			.user-card-grid { grid-template-columns: 1fr 1fr !important; }
+			.user-card-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
 			.user-card-grid--details { grid-template-columns: 1fr !important; }
-			.user-card-critical-banner { font-size: 11px; padding: 6px 10px; }
-			.sort-controls { flex-wrap: wrap; }
+			.user-card-critical-banner { font-size: 11px; padding: 8px 10px; }
+			.sort-controls { flex-wrap: wrap; width: 100%; }
+			.sort-controls select { flex: 1; }
 			/* Watchdog responsive */
 			.watchdog-section { padding: 14px; }
 			.watchdog-kpis { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-			.watchdog-kpi { padding: 10px 12px; }
-			.watchdog-kpi-value { font-size: 20px; }
-			.watchdog-tables { grid-template-columns: 1fr; }
+			.watchdog-kpi { padding: 12px 10px; }
+			.watchdog-kpi-value { font-size: 22px; }
+			.watchdog-tables { grid-template-columns: 1fr; gap: 10px; }
+			.watchdog-table-wrap { padding: 10px; }
+			.watchdog-table-wrap table { min-width: 240px; }
 			.watchdog-chart-wrap { padding: 10px; }
 		}
 
 		@media (max-width: 480px) {
-			body { padding: 8px; }
-			.header { padding: 14px; }
-			.header-content h1 { font-size: 18px; }
-			.controls { padding: 12px; }
-			.metrics { grid-template-columns: 1fr; }
-			.metric-card { padding: 14px; }
+			body { padding: 6px; }
+			.header { padding: 14px 12px; border-radius: 8px; }
+			.header-content h1 { font-size: 17px; }
+			.controls { padding: 12px; border-radius: 8px; }
+			.metrics { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+			.metric-card { padding: 12px 10px; border-radius: 8px; }
 			.metric-value { font-size: 22px; }
-			.chart-container { padding: 12px; }
+			.metric-label { font-size: 8px; letter-spacing: 0.6px; }
+			.chart-container { padding: 10px; border-radius: 8px; }
 			.chart-container h3 { font-size: 13px; }
-			.table-container { padding: 10px; }
-			th, td { padding: 6px; font-size: 10px; }
+			.table-container { padding: 10px; border-radius: 8px; }
+			th, td { padding: 6px 4px; font-size: 10px; }
 			/* User cards small screen */
-			.user-card { padding: 10px; }
-			.user-card-grid { grid-template-columns: 1fr !important; }
+			.user-card { padding: 12px; border-radius: 8px; }
+			.user-card-grid { grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
+			.user-card-grid--details { grid-template-columns: 1fr !important; }
 			.user-card-field-value { font-size: 12px; }
-			.user-card-critical-banner { font-size: 10px; }
+			.user-card-critical-banner { font-size: 10px; padding: 6px 8px; }
+			.user-card-id { font-size: 11px; }
 			/* Watchdog small screen */
-			.watchdog-kpis { grid-template-columns: 1fr 1fr; gap: 6px; }
-			.watchdog-kpi-value { font-size: 18px; }
-			.watchdog-kpi-label { font-size: 9px; }
+			.watchdog-section { padding: 12px; border-radius: 8px; }
+			.watchdog-kpis { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+			.watchdog-kpi { padding: 10px 8px; }
+			.watchdog-kpi-value { font-size: 20px; }
+			.watchdog-kpi-label { font-size: 8px; }
 		}
 
 		/* Scrollable table fade hints */
 		@media (max-width: 768px) {
 			.table-container { position: relative; }
 			.table-container::before, .table-container::after {
-				content: ''; position: absolute; top: 0; bottom: 0; width: 16px; pointer-events: none; z-index: 1;
+				content: ''; position: absolute; top: 0; bottom: 0; width: 12px; pointer-events: none; z-index: 1;
 			}
 			.table-container::before { left: 0; background: linear-gradient(to right, var(--bg-card), transparent); }
 			.table-container::after { right: 0; background: linear-gradient(to left, var(--bg-card), transparent); }
