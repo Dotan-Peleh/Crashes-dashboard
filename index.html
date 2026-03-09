@@ -1279,11 +1279,6 @@
 		}
 
 
-		@media (max-width: 768px) {
-			.watchdog-kpis { grid-template-columns: repeat(2, 1fr); }
-			.watchdog-tables { grid-template-columns: 1fr; }
-		}
-
 		/* Responsive */
 		@media (max-width: 768px) {
 			body { padding: 12px; }
@@ -1311,6 +1306,19 @@
 			table { min-width: 600px; }
 			th, td { padding: 8px; font-size: 11px; }
 			.search-results-btn { width: 100%; margin-bottom: 16px; }
+			/* User cards responsive */
+			.user-card { padding: 14px; }
+			.user-card-grid { grid-template-columns: 1fr 1fr !important; }
+			.user-card-grid--details { grid-template-columns: 1fr !important; }
+			.user-card-critical-banner { font-size: 11px; padding: 6px 10px; }
+			.sort-controls { flex-wrap: wrap; }
+			/* Watchdog responsive */
+			.watchdog-section { padding: 14px; }
+			.watchdog-kpis { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+			.watchdog-kpi { padding: 10px 12px; }
+			.watchdog-kpi-value { font-size: 20px; }
+			.watchdog-tables { grid-template-columns: 1fr; }
+			.watchdog-chart-wrap { padding: 10px; }
 		}
 
 		@media (max-width: 480px) {
@@ -1325,6 +1333,15 @@
 			.chart-container h3 { font-size: 13px; }
 			.table-container { padding: 10px; }
 			th, td { padding: 6px; font-size: 10px; }
+			/* User cards small screen */
+			.user-card { padding: 10px; }
+			.user-card-grid { grid-template-columns: 1fr !important; }
+			.user-card-field-value { font-size: 12px; }
+			.user-card-critical-banner { font-size: 10px; }
+			/* Watchdog small screen */
+			.watchdog-kpis { grid-template-columns: 1fr 1fr; gap: 6px; }
+			.watchdog-kpi-value { font-size: 18px; }
+			.watchdog-kpi-label { font-size: 9px; }
 		}
 
 		/* Scrollable table fade hints */
@@ -3667,6 +3684,30 @@
 
 		async function fetchWatchdogStats() {
 			const baseTable = `\`${CONFIG.PROJECT_ID}.${CONFIG.DATASET_ID}.sentry_errors\``;
+
+			// Build watchdog date filter matching the dashboard's current filter
+			let watchdogDateFilter;
+			const dateRangeType = document.querySelector('input[name="dateRangeType"]:checked')?.value || 'relative';
+			if (dateRangeType === 'absolute') {
+				const dateFrom = document.getElementById('dateFrom').value;
+				const dateTo = document.getElementById('dateTo').value;
+				if (dateFrom && dateTo) {
+					watchdogDateFilter = `DATE(timestamp) >= '${dateFrom}' AND DATE(timestamp) <= '${dateTo}'`;
+				} else {
+					watchdogDateFilter = `DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)`;
+				}
+			} else {
+				const dateRange = document.getElementById('dateRange').value;
+				if (dateRange === 'custom_hours') {
+					const customHours = document.getElementById('customHours').value || '12';
+					watchdogDateFilter = `timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${customHours} HOUR)`;
+				} else if (dateRange === 'hour') {
+					watchdogDateFilter = `timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)`;
+				} else {
+					watchdogDateFilter = `DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL ${dateRange} DAY)`;
+				}
+			}
+
 			const query = `
 				WITH watchdog AS (
 					SELECT
@@ -3676,7 +3717,7 @@
 						DATE(timestamp) AS event_date
 					FROM ${baseTable}
 					WHERE (title LIKE '%WatchdogTermination%' OR title LIKE '%watchdog%')
-						AND DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+						AND ${watchdogDateFilter}
 						AND platform IN ('cocoa', 'native')
 				)
 				SELECT
